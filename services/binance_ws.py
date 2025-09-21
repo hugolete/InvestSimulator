@@ -1,15 +1,20 @@
 import asyncio
 from binance import AsyncClient, BinanceSocketManager
+from db.db import SessionLocal
+from db.models import Asset
 
 prices = {}
-symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "LTCUSDT"]
+#symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "LTCUSDT"]
 
 async def start_binance_ws():
+    db = SessionLocal()
     client = await AsyncClient.create()
     bm = BinanceSocketManager(client)
 
     """ts = bm.symbol_ticker_socket("BTCUSDT")  # pour un seul symbole
     # ts = bm.ticker_socket()  # pour tous"""
+    # Récupérer tous les symboles crypto depuis la DB
+    symbols = [a.symbol for a in db.query(Asset).filter(Asset.type == "crypto").all()]
 
     tasks = []
     for s in symbols:
@@ -31,7 +36,7 @@ async def run_socket(ts):
 
 
 # Fonction helper pour récupérer le prix en mémoire
-def get_price(symbol: str):
+def get_crypto_price(symbol: str):
     return prices.get(symbol, None)
 
 
