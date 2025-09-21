@@ -1,4 +1,5 @@
-#SQLAlchemy (Users, Assets, UserAssets, Trades)
+# SQLAlchemy (Users, Assets, UserAssets, Trades)
+# Template de la DB
 
 from sqlalchemy import Column, Integer, String, ForeignKey, Float, DateTime, PrimaryKeyConstraint
 from sqlalchemy.orm import relationship, declarative_base
@@ -7,7 +8,7 @@ from datetime import datetime, timezone
 Base = declarative_base()
 
 # Table Users = profils
-class Users(Base):
+class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -18,7 +19,7 @@ class Users(Base):
 
 
 # Table Assets = catalogue global des actifs
-class Assets(Base):
+class Asset(Base):
     __tablename__ = "assets"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -31,7 +32,7 @@ class Assets(Base):
 
 
 # Table UserAssets = portefeuille actuel d’un user
-class UserAssets(Base):
+class UserAsset(Base):
     __tablename__ = "user_assets"
 
     user_id = Column(Integer, ForeignKey("users.id"))
@@ -47,7 +48,7 @@ class UserAssets(Base):
 
 
 # Table Trades = historique des opérations
-class Trades(Base):
+class Trade(Base):
     __tablename__ = "trades"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -56,7 +57,7 @@ class Trades(Base):
     side = Column(String)  # BUY ou SELL
     quantity = Column(Float)
     price = Column(Float)  # prix au moment du trade (en EUR ou USDT)
-    timestamp = Column(DateTime, default=datetime.now(timezone.utc)) # date du trade
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc)) # date du trade
 
     user = relationship("User", back_populates="trades")
     asset = relationship("Asset", back_populates="trades")
