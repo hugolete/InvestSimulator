@@ -1,7 +1,7 @@
 import asyncio
 from binance import AsyncClient, BinanceSocketManager
-from db.db import SessionLocal
-from db.models import Asset
+from api.db.db import SessionLocal
+from api.db.models import Asset
 
 prices = {}
 #symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "LTCUSDT"]

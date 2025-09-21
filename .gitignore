@@ -1,4 +1,4 @@
 .env
 .venv
-db/invest_simulator.db
+api/db/invest_simulator.db
 __pycache__/

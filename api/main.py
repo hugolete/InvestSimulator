@@ -2,9 +2,9 @@ from datetime import datetime, timezone
 import uvicorn
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
-from db.models import Asset, Base
-from db.db import get_db, engine
-from services.binance_ws import run_ws, get_crypto_price
+from api.db import Asset, Base
+from api.db import get_db, engine
+from api.services.binance_ws import run_ws, get_crypto_price
 
 Base.metadata.create_all(bind=engine)
 app = FastAPI()
