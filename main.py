@@ -44,7 +44,6 @@ def get_asset_price(symbol: str, db: Session = Depends(get_db)):
 # récup tous les prix en même temps
 @app.get("/assets")
 def get_assets(db: Session = Depends(get_db)):
-    # TODO a tester avec plusieurs assets
     assets = db.query(Asset).all()
     result = []
 
