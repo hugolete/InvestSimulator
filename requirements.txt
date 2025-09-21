@@ -1,2 +1,4 @@
+uvicorn
+python-binance
 fastapi~=0.116.2
 SQLAlchemy~=2.0.43
