@@ -32,7 +32,7 @@ def get_asset_price(symbol: str, db: Session = Depends(get_db)):
         return {"error": "Asset not found"}
 
     if asset.type == "crypto":
-        new_symbol = symbol+"USDT" # rajout du USDT pour la rech binance, TODO a tester
+        new_symbol = symbol+"USDT" # rajout du USDT pour la rech binance
         price = get_crypto_price(new_symbol.upper())  # prix live via Binance
     else:
         #price = get_price_other(symbol.upper())  # placeholder pour actions/ETF/bonds
@@ -54,7 +54,7 @@ def get_assets(db: Session = Depends(get_db)):
 
     for a in assets:
         if a.type == "crypto":
-            new_symbol = a.symbol + "USDT"  # rajout du USDT pour la rech binance, TODO a tester
+            new_symbol = a.symbol + "USDT"  # rajout du USDT pour la rech binance
             price = get_crypto_price(new_symbol.upper())
         else:
             # price = get_price_other(symbol.upper())  # placeholder pour actions/ETF/bonds
@@ -82,7 +82,7 @@ def portfolio(user_id: int, db: Session = Depends(get_db)):
 # récup historique des trades d'un profil
 @app.get("/profiles/{user_id}/history")
 def history(user_id: int, db: Session = Depends(get_db)):
-    # TODO tester
+    # TODO tester quand le reste sera fini
     user = db.query(User).filter(User.id == user_id).first()
     tradeHistory = db.query(Trade).filter(Trade.user_id == user.id).all()
 
@@ -104,7 +104,6 @@ def history(user_id: int, db: Session = Depends(get_db)):
 
 @app.post("/profiles")
 def create_profile(name: str, db: Session = Depends(get_db)):
-    # TODO a tester
     existing_user = db.query(User).filter(User.name == name).first()
 
     if existing_user:
@@ -130,7 +129,6 @@ def create_profile(name: str, db: Session = Depends(get_db)):
 
 @app.put("/profiles/{user_id}/edit")
 def edit_profile(user_id: int, new_name: str, db: Session = Depends(get_db)):
-    # TODO a tester
     user = db.query(User).filter(User.id == user_id).first()
 
     user.name = new_name
@@ -146,7 +144,6 @@ def edit_profile(user_id: int, new_name: str, db: Session = Depends(get_db)):
 
 @app.delete("/profiles/{user_id}/delete")
 def delete_profile(user_id: int, db: Session = Depends(get_db)):
-    # TODO a tester
     user = db.query(User).filter(User.id == user_id).first()
 
     # suppression des données liées
@@ -164,12 +161,16 @@ def delete_profile(user_id: int, db: Session = Depends(get_db)):
 # acheter un asset
 @app.post("/buy")
 def buy_endpoint(user_id:int, symbol:str, amount_eur:float):
+    #TODO
+
     return {}
 
 
 # vendre un asset possédé par le profil
 @app.post("/sell")
 def sell_endpoint(user_id:int, symbol:str, amount_asset:float):
+    #TODO
+
     return {}
 
 

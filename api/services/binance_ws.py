@@ -18,6 +18,7 @@ async def start_binance_ws():
 
     tasks = []
     for s in symbols:
+        s += "USDT"
         ts = bm.symbol_ticker_socket(s)
         tasks.append(run_socket(ts))
 
