@@ -3,7 +3,7 @@ import uvicorn
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from api.db.models import Asset, Base, User, UserAsset, Trade
-from api.db.db import get_db, engine
+from api.db.db import get_db, engine, SessionLocal
 from api.services.binance_ws import run_ws, get_crypto_price
 
 
@@ -53,12 +53,7 @@ def get_assets(db: Session = Depends(get_db)):
     result = []
 
     for a in assets:
-        if a.type == "crypto":
-            new_symbol = a.symbol + "USDT"  # rajout du USDT pour la rech binance
-            price = get_crypto_price(new_symbol.upper())
-        else:
-            # price = get_price_other(symbol.upper())  # placeholder pour actions/ETF/bonds
-            return {}
+        price = get_prix(a.id)
 
         result.append({
             "symbol": a.symbol,
@@ -74,8 +69,6 @@ def get_assets(db: Session = Depends(get_db)):
 @app.get("/profiles/{user_id}")
 def portfolio(user_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
-    # TODO récupérer les userassets de l'user concerné et afficher quantité + calculer valeur
-
     userAssets = db.query(UserAsset).filter(UserAsset.user_id == user_id).all()
 
     result = []
@@ -84,14 +77,7 @@ def portfolio(user_id: int, db: Session = Depends(get_db)):
     for a in userAssets:
         asset = db.query(Asset).filter(Asset.id == a.asset_id).first()
 
-        price = 0.0
-
-        if asset.type == "crypto":
-            new_symbol = asset.symbol + "USDT"  # rajout du USDT pour la rech binance
-            price = get_crypto_price(new_symbol.upper())  # prix live via Binance
-        else:
-            # price = get_price_other(symbol.upper())  # placeholder pour actions/ETF/bonds
-            price = 1.0
+        price = get_prix(a.asset_id)
 
         worth = a.quantity * price
         total_worth += worth
@@ -190,8 +176,12 @@ def delete_profile(user_id: int, db: Session = Depends(get_db)):
 
 # acheter un asset
 @app.post("/buy")
-def buy_endpoint(user_id:int, symbol:str, amount_eur:float):
+def buy_endpoint(user_id:int, symbol:str, amount_eur:float, db: Session = Depends(get_db)):
     #TODO
+    #user = db.query(User).filter(User.id == user_id).first()
+
+
+
 
     return {}
 
@@ -202,6 +192,22 @@ def sell_endpoint(user_id:int, symbol:str, amount_asset:float):
     #TODO
 
     return {}
+
+
+def get_prix(asset_id:int):
+    db = SessionLocal()
+
+    asset = db.query(Asset).filter(Asset.id == asset_id).first()
+    price = 0.0
+
+    if asset.type == "crypto":
+        new_symbol = asset.symbol + "USDT"  # rajout du USDT pour la rech binance
+        price = get_crypto_price(new_symbol.upper())  # prix live via Binance
+    else:
+        # price = get_price_other(symbol.upper())  # placeholder pour actions/ETF/bonds
+        price = 1.0
+
+    return price
 
 
 if __name__ == "__main__":
