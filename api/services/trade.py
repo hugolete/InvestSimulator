@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from api.db.models import Trade, UserAsset, Asset
-from api.main import get_prix
+from api.services.prices import get_prix
 
 
 def buy_asset(user,asset,amount_fiat:float,currency:str,db:Session):

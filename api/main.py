@@ -1,11 +1,13 @@
 from datetime import datetime, timezone
 import uvicorn
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
-from api.db.models import Asset, Base, User, UserAsset, Trade
-from api.db.db import get_db, engine, SessionLocal
+from api.db.models import Asset, Base, User, Trade
+from api.db.db import get_db, engine
+from api.services import profiles
 from api.services.binance_ws import run_ws, get_crypto_price
 from api.services.trade import buy_asset
+from api.services.prices import get_prix
 
 Base.metadata.create_all(bind=engine)
 app = FastAPI()
@@ -68,31 +70,7 @@ def get_assets(db: Session = Depends(get_db)):
 # récup profil (nom + valeur totale + détails du portfolio)
 @app.get("/profiles/{user_id}")
 def portfolio(user_id: int, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.id == user_id).first()
-    userAssets = db.query(UserAsset).filter(UserAsset.user_id == user_id).all()
-
-    result = []
-    total_worth = 0.0
-
-    for a in userAssets:
-        asset = db.query(Asset).filter(Asset.id == a.asset_id).first()
-
-        price = get_prix(a.asset_id)
-
-        worth = a.quantity * price
-        total_worth += worth
-
-        result.append({
-            "symbol": asset.symbol,
-            "name": asset.name,
-            "type": asset.type,
-            "quantity": a.quantity,
-            "worth": worth
-        })
-
-    result.append({"total_worth": total_worth})
-
-    return result
+    return profiles.get_portfolio(user_id, db)
 
 
 # récup historique des trades d'un profil
@@ -120,36 +98,18 @@ def history(user_id: int, db: Session = Depends(get_db)):
 
 @app.post("/profiles")
 def create_profile(name: str, db: Session = Depends(get_db)):
-    existing_user = db.query(User).filter(User.name == name).first()
-
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Un profil avec ce nom existe déjà")
-
-    new_user = User(name=name)
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-
-    #Lui ajouter le montant de départ (50k euros)
-    euro = db.query(Asset).filter(Asset.symbol == "EUR").first()
-    starting_balance = UserAsset(user_id=new_user.id, asset_id=euro.id, quantity=50000)
-    db.add(starting_balance)
-    db.commit()
+    user = profiles.create_profile(name, db)
 
     return {
-        "id": new_user.id,
-        "name": new_user.name,
+        "id": user.id,
+        "name": user.name,
         "message": "Profil créé avec succès"
     }
 
 
 @app.put("/profiles/{user_id}/edit")
 def edit_profile(user_id: int, new_name: str, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.id == user_id).first()
-
-    user.name = new_name
-    db.commit()
-    db.refresh(user)
+    user = profiles.edit_profile(user_id, new_name, db)
 
     return {
         "id": user.id,
@@ -160,23 +120,15 @@ def edit_profile(user_id: int, new_name: str, db: Session = Depends(get_db)):
 
 @app.delete("/profiles/{user_id}/delete")
 def delete_profile(user_id: int, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.id == user_id).first()
+    profiles.delete_profile(user_id, db)
 
-    # suppression des données liées
-    db.query(UserAsset).filter(UserAsset.user_id == user.id).delete()
-    db.query(Trade).filter(Trade.user_id == user_id).delete()
-
-    db.delete(user)
-    db.commit()
-
-    return {
-        "message": f"Profil {user_id} supprimé avec succès"
-    }
+    return {"message": f"Profil {user_id} supprimé avec succès"}
 
 
 # acheter un asset
 @app.post("/buy")
 def buy_endpoint(user_id:int, symbol:str, amount_fiat:float, currency:str, db: Session = Depends(get_db)):
+    #TODO a tester
     user = db.query(User).filter(User.id == user_id).first()
     asset = db.query(Asset).filter(Asset.symbol == symbol).first()
 
@@ -205,20 +157,7 @@ def sell_endpoint(user_id:int, symbol:str, amount_asset:float):
     return {}
 
 
-def get_prix(asset_id:int):
-    db = SessionLocal()
 
-    asset = db.query(Asset).filter(Asset.id == asset_id).first()
-    price = 0.0
-
-    if asset.type == "crypto":
-        new_symbol = asset.symbol + "USDT"  # rajout du USDT pour la rech binance
-        price = get_crypto_price(new_symbol.upper())  # prix live via Binance
-    else:
-        # price = get_price_other(symbol.upper())  # placeholder pour actions/ETF/bonds
-        price = 1.0
-
-    return price
 
 
 if __name__ == "__main__":
