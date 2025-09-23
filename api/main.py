@@ -76,7 +76,37 @@ def portfolio(user_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     # TODO récupérer les userassets de l'user concerné et afficher quantité + calculer valeur
 
-    return {}
+    userAssets = db.query(UserAsset).filter(UserAsset.user_id == user_id).all()
+
+    result = []
+    total_worth = 0.0
+
+    for a in userAssets:
+        asset = db.query(Asset).filter(Asset.id == a.asset_id).first()
+
+        price = 0.0
+
+        if asset.type == "crypto":
+            new_symbol = asset.symbol + "USDT"  # rajout du USDT pour la rech binance
+            price = get_crypto_price(new_symbol.upper())  # prix live via Binance
+        else:
+            # price = get_price_other(symbol.upper())  # placeholder pour actions/ETF/bonds
+            price = 1.0
+
+        worth = a.quantity * price
+        total_worth += worth
+
+        result.append({
+            "symbol": asset.symbol,
+            "name": asset.name,
+            "type": asset.type,
+            "quantity": a.quantity,
+            "worth": worth
+        })
+
+    result.append({"total_worth": total_worth})
+
+    return result
 
 
 # récup historique des trades d'un profil
