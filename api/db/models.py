@@ -56,8 +56,8 @@ class Trade(Base):
     asset_id = Column(Integer, ForeignKey("assets.id"))
     side = Column(String)  # BUY ou SELL
     quantity = Column(Float)
-    price = Column(Float)  # prix au moment du trade (en EUR ou USDT)
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc)) # date du trade
+    price = Column(Float)  # prix au moment du trade (en USD)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc)) # date du trade en UTC
 
     user = relationship("User", back_populates="trades")
     asset = relationship("Asset", back_populates="trades")

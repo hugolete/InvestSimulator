@@ -6,7 +6,7 @@ from api.db.models import Asset, Base, User, Trade
 from api.db.db import get_db, engine
 from api.services import profiles
 from api.services.binance_ws import run_ws, get_crypto_price
-from api.services.trade import buy_asset
+from api.services.trade import buy_asset, sell_asset
 from api.services.prices import get_prix
 
 Base.metadata.create_all(bind=engine)
@@ -127,12 +127,12 @@ def delete_profile(user_id: int, db: Session = Depends(get_db)):
 
 # acheter un asset
 @app.post("/buy")
-def buy_endpoint(user_id:int, symbol:str, amount_fiat:float, currency:str, db: Session = Depends(get_db)):
+def buy_endpoint(user_id:int, symbol:str, amount_fiat:float, currency:str="USD", db: Session = Depends(get_db)):
     #TODO a tester
     user = db.query(User).filter(User.id == user_id).first()
     asset = db.query(Asset).filter(Asset.symbol == symbol).first()
 
-    asset_amount = buy_asset(user,asset,amount_fiat,currency,db)
+    asset_amount, price = buy_asset(user,asset,amount_fiat,currency,db)
 
     symbol_currency = ""
 
@@ -141,23 +141,43 @@ def buy_endpoint(user_id:int, symbol:str, amount_fiat:float, currency:str, db: S
     elif currency == "USD":
         symbol_currency = "$"
 
+    total_price = asset_amount * price
+
     return {
         "message": "Asset acheté avec succès",
         "symbol": asset.symbol,
         "amount": asset_amount,
-        "price": f"{amount_fiat}{symbol_currency}"
+        "price": f"{amount_fiat}{symbol_currency}",
+        "assetUnitPrice": f"{price}{symbol_currency}",
+        "total_price": f"{total_price}{symbol_currency}"
     }
 
 
 # vendre un asset possédé par le profil
 @app.post("/sell")
-def sell_endpoint(user_id:int, symbol:str, amount_asset:float):
-    #TODO
+def sell_endpoint(user_id:int, symbol:str, asset_amount:float,currency:str="USD",db: Session = Depends(get_db)):
+    #TODO a tester
+    user = db.query(User).filter(User.id == user_id).first()
+    asset = db.query(Asset).filter(Asset.symbol == symbol).first()
 
-    return {}
+    currency_amount, price = sell_asset(user,asset,asset_amount,currency,db)
 
+    symbol_currency = ""
 
+    if currency == "EUR":
+        symbol_currency = "€"
+    elif currency == "USD":
+        symbol_currency = "$"
 
+    total_price = asset_amount * price
+
+    return {
+        "message": "Asset vendu avec succès",
+        "symbol": asset.symbol,
+        "amount": asset_amount,
+        "price": f"{price}{symbol_currency}",
+        "total_price": f"{total_price}{symbol_currency}"
+    }
 
 
 if __name__ == "__main__":
