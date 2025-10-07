@@ -1,6 +1,7 @@
-from http.client import HTTPException
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from api.db.models import Trade, UserAsset, Asset
+from api.services.binance_ws import get_crypto_price
 from api.services.prices import get_prix
 
 
@@ -10,7 +11,7 @@ def buy_asset(user,asset,amount_fiat:float,currency:str,db:Session):
     currency_user = db.query(UserAsset).filter(UserAsset.user_id == user.id,UserAsset.asset_id == currency.id).first()
 
     if not currency_user or currency_user.quantity < amount_fiat:
-        raise HTTPException("Fonds insuffisants pour acheter")
+        raise HTTPException(status_code=400,detail="Fonds insuffisants pour acheter")
 
     price = get_prix(asset.id)
 
@@ -58,7 +59,7 @@ def sell_asset(user,asset,amount_asset:float,currency:str,db:Session):
     assetToUpdate = db.query(UserAsset).filter(UserAsset.user_id == user.id, UserAsset.asset_id == asset.id).first()
 
     if not assetToUpdate or amount_asset > assetToUpdate.quantity:
-        raise HTTPException("Fonds insufsants pour acheter")
+        raise HTTPException(status_code=400,detail="Fonds insuffisants pour acheter")
 
     # récup monnaie user
     currency = db.query(Asset).filter(Asset.symbol == currency.upper()).first()
@@ -93,3 +94,55 @@ def sell_asset(user,asset,amount_asset:float,currency:str,db:Session):
     db.refresh(currency_user)
 
     return round(currency_amount,2), round(price,2)
+
+
+def convert_currencies(amount: float,from_symbol:str,to_symbol:str,user,db:Session) -> float:
+    # convertir eur/usd et usd/eur
+    try:
+        paire = from_symbol + to_symbol
+        rate = get_crypto_price(paire)
+
+        if rate is None:
+            raise HTTPException(status_code=400,detail=f"Erreur de conversion {from_symbol}->{to_symbol} : taux non trouvé")
+
+        amount_in_new_currency = amount * rate
+
+        dollarUpdate = db.query(UserAsset).filter(UserAsset.user_id == user.id, UserAsset.asset_id == 4).first()
+        euroUpdate = db.query(UserAsset).filter(UserAsset.user_id == user.id, UserAsset.asset_id == 11).first()
+
+        if euroUpdate is None:
+            # créer ligne euro dans la db
+            new_euro = UserAsset(user_id=user.id, asset_id=11, quantity=0)
+            db.add(new_euro)
+            db.commit()
+            db.refresh(new_euro)
+            euroUpdate = new_euro
+
+        if from_symbol == to_symbol:
+            raise HTTPException(status_code=400,detail="Même monnaie")
+
+        if from_symbol == "EUR":
+            if amount > euroUpdate.quantity:
+                raise HTTPException(status_code=400,detail="Fonds insuffisants pour acheter")
+
+            dollarUpdate.quantity += amount_in_new_currency
+            euroUpdate.quantity -= amount
+        elif from_symbol == "USD":
+            if amount > dollarUpdate.quantity:
+                raise HTTPException(status_code=400,detail="Fonds insuffisants pour acheter")
+
+            dollarUpdate.quantity -= amount
+            euroUpdate.quantity += amount_in_new_currency
+        else:
+            raise HTTPException(status_code=400,detail="Symbole inconnu")
+
+        db.commit()
+        db.refresh(dollarUpdate)
+        db.refresh(euroUpdate)
+
+        return round(amount_in_new_currency, 2)
+    except Exception as e:
+        print(f"Erreur de conversion {from_symbol}->{to_symbol} : {e}")
+
+    # si tout échoue, retourne le montant original (ou None)
+    return amount

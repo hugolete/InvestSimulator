@@ -6,7 +6,7 @@ from api.db.models import Asset, Base, User, Trade
 from api.db.db import get_db, engine
 from api.services import profiles
 from api.services.binance_ws import run_ws, get_crypto_price
-from api.services.trade import buy_asset, sell_asset
+from api.services.trade import buy_asset, sell_asset, convert_currencies
 from api.services.prices import get_prix
 
 Base.metadata.create_all(bind=engine)
@@ -76,7 +76,6 @@ def portfolio(user_id: int, db: Session = Depends(get_db)):
 # récup historique des trades d'un profil
 @app.get("/profiles/{user_id}/history")
 def history(user_id: int, db: Session = Depends(get_db)):
-    # TODO tester quand le reste sera fini
     user = db.query(User).filter(User.id == user_id).first()
     tradeHistory = db.query(Trade).filter(Trade.user_id == user.id).all()
 
@@ -128,18 +127,18 @@ def delete_profile(user_id: int, db: Session = Depends(get_db)):
 # acheter un asset
 @app.post("/buy")
 def buy_endpoint(user_id:int, symbol:str, amount_fiat:float, currency:str="USD", db: Session = Depends(get_db)):
-    #TODO a tester
-    user = db.query(User).filter(User.id == user_id).first()
-    asset = db.query(Asset).filter(Asset.symbol == symbol).first()
-
-    asset_amount, price = buy_asset(user,asset,amount_fiat,currency,db)
-
     symbol_currency = ""
 
     if currency == "EUR":
         symbol_currency = "€"
     elif currency == "USD":
         symbol_currency = "$"
+
+    user = db.query(User).filter(User.id == user_id).first()
+    asset = db.query(Asset).filter(Asset.symbol == symbol).first()
+    print(asset.id)
+
+    asset_amount, price = buy_asset(user,asset,amount_fiat,currency,db)
 
     total_price = asset_amount * price
 
@@ -156,7 +155,6 @@ def buy_endpoint(user_id:int, symbol:str, amount_fiat:float, currency:str="USD",
 # vendre un asset possédé par le profil
 @app.post("/sell")
 def sell_endpoint(user_id:int, symbol:str, asset_amount:float,currency:str="USD",db: Session = Depends(get_db)):
-    #TODO a tester
     user = db.query(User).filter(User.id == user_id).first()
     asset = db.query(Asset).filter(Asset.symbol == symbol).first()
 
@@ -169,7 +167,7 @@ def sell_endpoint(user_id:int, symbol:str, asset_amount:float,currency:str="USD"
     elif currency == "USD":
         symbol_currency = "$"
 
-    total_price = asset_amount * price
+    total_price = round(asset_amount * price,2)
 
     return {
         "message": "Asset vendu avec succès",
@@ -177,6 +175,29 @@ def sell_endpoint(user_id:int, symbol:str, asset_amount:float,currency:str="USD"
         "amount": asset_amount,
         "price": f"{price}{symbol_currency}",
         "total_price": f"{total_price}{symbol_currency}"
+    }
+
+
+# convertir entre USD et EUR
+@app.post("/convert")
+def convert(user_id:int, amount:float, from_symbol:str,to_symbol:str,db: Session = Depends(get_db)):
+    #TODO a tester
+    user = db.query(User).filter(User.id == user_id).first()
+
+    from_symbol_short = ""
+    if from_symbol == "USD":
+        from_symbol_short = "$"
+    elif from_symbol == "EUR":
+        from_symbol_short = "€"
+
+    amount_in_new_currency = convert_currencies(amount,from_symbol, to_symbol,user,db)
+
+    return {
+        "message": "Conversion réussie",
+        "from_symbol": from_symbol,
+        "to_symbol": to_symbol,
+        "original_amount": f"{amount}{from_symbol_short}",
+        "new_amount": f"{amount_in_new_currency}{from_symbol_short}"
     }
 
 
