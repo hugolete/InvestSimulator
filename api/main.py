@@ -136,7 +136,6 @@ def buy_endpoint(user_id:int, symbol:str, amount_fiat:float, currency:str="USD",
 
     user = db.query(User).filter(User.id == user_id).first()
     asset = db.query(Asset).filter(Asset.symbol == symbol).first()
-    print(asset.id)
 
     asset_amount, price = buy_asset(user,asset,amount_fiat,currency,db)
 
@@ -181,7 +180,7 @@ def sell_endpoint(user_id:int, symbol:str, asset_amount:float,currency:str="USD"
 # convertir entre USD et EUR
 @app.post("/convert")
 def convert(user_id:int, amount:float, from_symbol:str,to_symbol:str,db: Session = Depends(get_db)):
-    #TODO a tester
+    #TODO a refaire, ne fonctionne pas
     user = db.query(User).filter(User.id == user_id).first()
 
     from_symbol_short = ""

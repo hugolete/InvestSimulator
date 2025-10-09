@@ -8,10 +8,22 @@ from api.services.prices import get_prix
 def buy_asset(user,asset,amount_fiat:float,currency:str,db:Session):
     # vérifier que l’utilisateur possède assez de fonds
     currency = db.query(Asset).filter(Asset.symbol == currency.upper()).first()
+    print(asset)
+    print(user)
+
+    if currency is None:
+        raise HTTPException(status_code=400, detail="Monnaie inexistante")
+
     currency_user = db.query(UserAsset).filter(UserAsset.user_id == user.id,UserAsset.asset_id == currency.id).first()
+
+    if currency_user is None:
+        raise HTTPException(status_code=400, detail="Monnaie inexistante")
 
     if not currency_user or currency_user.quantity < amount_fiat:
         raise HTTPException(status_code=400,detail="Fonds insuffisants pour acheter")
+
+    if user is None or asset is None:
+        raise HTTPException(status_code=400, detail="Utilisateur ou asset inexistant")
 
     price = get_prix(asset.id)
 
@@ -56,14 +68,27 @@ def buy_asset(user,asset,amount_fiat:float,currency:str,db:Session):
 
 def sell_asset(user,asset,amount_asset:float,currency:str,db:Session):
     # vérifier que l’utilisateur possède assez de l'asset qu'il veut vendre
+    if user is None or asset is None:
+        raise HTTPException(status_code=400, detail="Utilisateur ou asset inexistant")
+
     assetToUpdate = db.query(UserAsset).filter(UserAsset.user_id == user.id, UserAsset.asset_id == asset.id).first()
 
     if not assetToUpdate or amount_asset > assetToUpdate.quantity:
-        raise HTTPException(status_code=400,detail="Fonds insuffisants pour acheter")
+        raise HTTPException(status_code=400,detail="Fonds insuffisants pour vendre")
 
-    # récup monnaie user
+    if assetToUpdate is None:
+        raise HTTPException(status_code=400, detail="Cet utilisateur ne possède pas l'asset a vendre")
+
+    # récup monnaie voulue par l'user
     currency = db.query(Asset).filter(Asset.symbol == currency.upper()).first()
+
+    if currency is None:
+        raise HTTPException(status_code=400, detail="Monnaie inexistante")
+
     currency_user = db.query(UserAsset).filter(UserAsset.user_id == user.id,UserAsset.asset_id == currency.id).first()  # monnaie de l'user
+
+    if currency_user is None:
+        raise HTTPException(status_code=400, detail="Monnaie inexistante")
 
     price = get_prix(asset.id)
 
