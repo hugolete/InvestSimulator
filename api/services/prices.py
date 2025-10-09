@@ -18,13 +18,3 @@ def get_prix(asset_id:int):
         price = 1.0
 
     return price
-
-
-def get_crypto_rate(from_symbol:str,to_symbol:str):
-    paire = from_symbol + to_symbol
-    rate = get_crypto_price(paire)
-
-    if rate is None:
-        raise HTTPException(status_code=400,detail=f"Erreur de conversion {from_symbol}->{to_symbol} : taux non trouvé")
-
-    return rate
