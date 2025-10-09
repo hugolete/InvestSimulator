@@ -1,7 +1,7 @@
 from fastapi import HTTPException
+import requests
 from sqlalchemy.orm import Session
 from api.db.models import Trade, UserAsset, Asset
-from api.services.binance_ws import get_crypto_price
 from api.services.prices import get_prix
 
 
@@ -124,8 +124,10 @@ def sell_asset(user,asset,amount_asset:float,currency:str,db:Session):
 def convert_currencies(amount: float,from_symbol:str,to_symbol:str,user,db:Session) -> float:
     # convertir eur/usd et usd/eur
     try:
-        paire = from_symbol + to_symbol
-        rate = get_crypto_price(paire)
+        if from_symbol == to_symbol:
+            raise HTTPException(status_code=400,detail="Même monnaie")
+
+        rate = get_fiat_rate(from_symbol,to_symbol)
 
         if rate is None:
             raise HTTPException(status_code=400,detail=f"Erreur de conversion {from_symbol}->{to_symbol} : taux non trouvé")
@@ -143,18 +145,15 @@ def convert_currencies(amount: float,from_symbol:str,to_symbol:str,user,db:Sessi
             db.refresh(new_euro)
             euroUpdate = new_euro
 
-        if from_symbol == to_symbol:
-            raise HTTPException(status_code=400,detail="Même monnaie")
-
         if from_symbol == "EUR":
             if amount > euroUpdate.quantity:
-                raise HTTPException(status_code=400,detail="Fonds insuffisants pour acheter")
+                raise HTTPException(status_code=400,detail="Fonds insuffisants pour convertir")
 
             dollarUpdate.quantity += amount_in_new_currency
             euroUpdate.quantity -= amount
         elif from_symbol == "USD":
             if amount > dollarUpdate.quantity:
-                raise HTTPException(status_code=400,detail="Fonds insuffisants pour acheter")
+                raise HTTPException(status_code=400,detail="Fonds insuffisants pour convertir")
 
             dollarUpdate.quantity -= amount
             euroUpdate.quantity += amount_in_new_currency
@@ -166,8 +165,19 @@ def convert_currencies(amount: float,from_symbol:str,to_symbol:str,user,db:Sessi
         db.refresh(euroUpdate)
 
         return round(amount_in_new_currency, 2)
+
+    except HTTPException:
+        # relance les erreurs HTTP pour que FastAPI les gère
+        raise
     except Exception as e:
         print(f"Erreur de conversion {from_symbol}->{to_symbol} : {e}")
 
-    # si tout échoue, retourne le montant original (ou None)
     return amount
+
+
+def get_fiat_rate(from_symbol: str, to_symbol: str) -> float:
+    url = f"https://api.frankfurter.app/latest?from={from_symbol}&to={to_symbol}"
+    response = requests.get(url)
+    data = response.json()
+
+    return data["rates"][to_symbol]

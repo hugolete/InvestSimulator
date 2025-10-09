@@ -180,14 +180,20 @@ def sell_endpoint(user_id:int, symbol:str, asset_amount:float,currency:str="USD"
 # convertir entre USD et EUR
 @app.post("/convert")
 def convert(user_id:int, amount:float, from_symbol:str,to_symbol:str,db: Session = Depends(get_db)):
-    #TODO a refaire, ne fonctionne pas
     user = db.query(User).filter(User.id == user_id).first()
 
     from_symbol_short = ""
+    to_symbol_short = ""
+
     if from_symbol == "USD":
         from_symbol_short = "$"
     elif from_symbol == "EUR":
         from_symbol_short = "€"
+
+    if to_symbol == "USD":
+        to_symbol_short = "$"
+    elif to_symbol == "EUR":
+        to_symbol_short = "€"
 
     amount_in_new_currency = convert_currencies(amount,from_symbol, to_symbol,user,db)
 
@@ -196,7 +202,7 @@ def convert(user_id:int, amount:float, from_symbol:str,to_symbol:str,db: Session
         "from_symbol": from_symbol,
         "to_symbol": to_symbol,
         "original_amount": f"{amount}{from_symbol_short}",
-        "new_amount": f"{amount_in_new_currency}{from_symbol_short}"
+        "new_amount": f"{amount_in_new_currency}{to_symbol_short}"
     }
 
 
