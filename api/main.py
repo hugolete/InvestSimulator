@@ -1,13 +1,13 @@
 from datetime import datetime, timezone
 import uvicorn
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from api.db.models import Asset, Base, User, Trade
 from api.db.db import get_db, engine
 from api.services import profiles
-from api.services.binance_ws import run_ws, get_crypto_price
+from api.services.binance_ws import run_ws
 from api.services.trade import buy_asset, sell_asset, convert_currencies
-from api.services.prices import get_prix
+from api.services.prices import get_prix, get_price_history
 
 Base.metadata.create_all(bind=engine)
 app = FastAPI()
@@ -30,15 +30,11 @@ def home():
 @app.get("/assets/{symbol}")
 def get_asset_price(symbol: str, db: Session = Depends(get_db)):
     asset = db.query(Asset).filter(Asset.symbol == symbol.upper()).first()
+
     if not asset:
         return {"error": "Asset not found"}
 
-    if asset.type == "crypto":
-        new_symbol = symbol+"USDT" # rajout du USDT pour la rech binance
-        price = get_crypto_price(new_symbol.upper())  # prix live via Binance
-    else:
-        #price = get_price_other(symbol.upper())  # placeholder pour actions/ETF/bonds
-        return {}
+    price = get_prix(asset.id)
 
     return {
         "symbol": asset.symbol,
@@ -203,6 +199,43 @@ def convert(user_id:int, amount:float, from_symbol:str,to_symbol:str,db: Session
         "to_symbol": to_symbol,
         "original_amount": f"{amount}{from_symbol_short}",
         "new_amount": f"{amount_in_new_currency}{to_symbol_short}"
+    }
+
+
+@app.get("/prices/history/{symbol}/{period}")
+def get_history(symbol: str, period: str, db: Session = Depends(get_db)):
+    #TODO tester quand tout le reste sera fait
+    asset = db.query(Asset).filter(Asset.symbol == symbol).first()
+
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset introuvable")
+
+    return get_price_history(asset, period)
+
+
+@app.get("/prices/history/{symbol}")
+def get_global_history(symbol: str, db: Session = Depends(get_db)):
+    #TODO a tester quand tout le reste sera fait
+    asset = db.query(Asset).filter(Asset.symbol == symbol).first()
+
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset introuvable")
+
+    period_list = ["1h","6h","24h","1w","6m","1y","5y"]
+
+    results = {}
+
+    for period in period_list:
+        try:
+            price = get_price_history(asset, period)
+            results[period] = price
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Echec de la récup de l'historique : {e}")
+
+    return {
+        "symbol": asset.symbol,
+        "type": asset.type,
+        "history": results
     }
 
 

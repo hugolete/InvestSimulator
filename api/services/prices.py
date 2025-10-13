@@ -3,6 +3,8 @@ from fastapi import HTTPException
 from api.db.db import SessionLocal
 from api.db.models import Asset
 from api.services.binance_ws import get_crypto_price
+from api.services.finnhub_ws import get_stock_price
+
 
 def get_prix(asset_id:int):
     db = SessionLocal()
@@ -13,8 +15,16 @@ def get_prix(asset_id:int):
     if asset.type == "crypto":
         new_symbol = asset.symbol + "USDT"  # rajout du USDT pour la rech binance
         price = get_crypto_price(new_symbol.upper())  # prix live via Binance
+    elif asset.type == "stock" or asset.type == "etf":
+        price = get_stock_price(asset.symbol.upper()) # Actions et ETF
     else:
-        # price = get_price_other(symbol.upper())  # placeholder pour actions/ETF/bonds
+        # placeholder pour bonds
         price = 1.0
 
     return price
+
+
+def get_price_history(asset, period:str):
+    #TODO quand l'historique binance & finnhub seront bons
+
+    return 0

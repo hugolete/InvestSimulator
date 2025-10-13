@@ -2,9 +2,11 @@ import asyncio
 from binance import AsyncClient, BinanceSocketManager
 from api.db.db import SessionLocal
 from api.db.models import Asset
+import requests
+
 
 prices = {}
-#symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "LTCUSDT"]
+
 
 async def start_binance_ws():
     db = SessionLocal()
@@ -45,3 +47,29 @@ def get_crypto_price(symbol: str):
 def run_ws():
     loop = asyncio.get_event_loop()
     loop.create_task(start_binance_ws())
+
+
+def get_binance_history(symbol:str,period:str):
+    # TODO fonctionne seul, a tester avec api
+    # exemple period : "1h"
+    new_symbol = symbol+"USDT"
+
+    url = "https://api.binance.com/api/v3/klines"
+    params = {"symbol": new_symbol.upper(), "interval": period, "limit": 100}
+    response = requests.get(url, params=params)
+    data = response.json()
+
+    # Chaque entrée contient : [Open time, Open, High, Low, Close, Volume, ...]
+    candles = [
+        {
+            "timestamp": c[0],
+            "open": float(c[1]),
+            "high": float(c[2]),
+            "low": float(c[3]),
+            "close": float(c[4]),
+            "volume": float(c[5]),
+        }
+        for c in data
+    ]
+
+    return candles

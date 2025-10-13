@@ -6,6 +6,8 @@ from api.db.db import SessionLocal
 from api.db.models import Asset
 from dotenv import load_dotenv
 
+#TODO a tester, d'abord rajouter actions et etf dans la db
+
 load_dotenv()
 
 # Cache global des prix (comme pour Binance)
@@ -13,10 +15,6 @@ prices = {}
 
 
 async def start_finnhub_ws():
-    """
-    Démarre une connexion WebSocket Finnhub et écoute les prix
-    des actions et ETF présents dans la base de données.
-    """
     db = SessionLocal()
 
     # Récupère tous les symboles "stock" et "etf" depuis la DB
@@ -53,11 +51,9 @@ async def restart_finnhub_ws():
 
 
 def run_ws():
-    """À appeler depuis main.py (comme pour Binance)"""
     loop = asyncio.get_event_loop()
     loop.create_task(restart_finnhub_ws())
 
 
 def get_stock_price(symbol: str):
-    """Récupère le dernier prix en mémoire"""
     return prices.get(symbol, None)
