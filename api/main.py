@@ -221,7 +221,7 @@ def get_global_history(symbol: str, db: Session = Depends(get_db)):
     if not asset:
         raise HTTPException(status_code=404, detail="Asset introuvable")
 
-    period_list = ["1h","6h","24h","1w","6m","1y","5y"]
+    period_list = ["1h","12h","1d","1w","1m","6m","1y","5y"]
 
     results = {}
 
@@ -232,11 +232,24 @@ def get_global_history(symbol: str, db: Session = Depends(get_db)):
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Echec de la récup de l'historique : {e}")
 
+    results["now"] = get_prix(asset.id)
+
     return {
         "symbol": asset.symbol,
         "type": asset.type,
         "history": results
     }
+
+
+@app.get("/prices/percentage/{symbol}/{period}")
+def get_percentage(symbol: str, period: str, db: Session = Depends(get_db)):
+    #TODO a tester
+    asset = db.query(Asset).filter(Asset.symbol == symbol).first()
+    before, now = get_price_history(asset,period)
+
+    percentage = ((now - before) / before) * 100
+
+    return round(percentage, 2)
 
 
 if __name__ == "__main__":

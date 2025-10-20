@@ -1,8 +1,7 @@
 # services/prices.py
-from fastapi import HTTPException
 from api.db.db import SessionLocal
 from api.db.models import Asset
-from api.services.binance_ws import get_crypto_price
+from api.services.binance_ws import get_crypto_price, get_binance_history
 from api.services.finnhub_ws import get_stock_price
 
 
@@ -25,6 +24,28 @@ def get_prix(asset_id:int):
 
 
 def get_price_history(asset, period:str):
-    #TODO quand l'historique binance & finnhub seront bons
+    #TODO crypto a tester, action (finnhub) a faire
+    symbol = asset.symbol
 
-    return 0
+    if asset.type == "crypto":
+        candles = get_binance_history(symbol, period)
+
+        lastIndex = 1
+
+        if period == "12h":
+            lastIndex = 11
+        if period == "1m":
+            lastIndex = 3
+        if period == "6m":
+            lastIndex = 25
+        if period == "1y":
+            lastIndex = 51
+        if period == "5y":
+            lastIndex = 259
+
+        return candles[lastIndex]["close"]
+    elif asset.type == "stock" or asset.type == "etf":
+        return 0
+    else:
+        # placeholder pour bonds
+        return 0
