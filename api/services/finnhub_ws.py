@@ -1,6 +1,8 @@
 import asyncio
 import json
 import os
+
+import requests
 import websockets
 from api.db.db import SessionLocal
 from api.db.models import Asset
@@ -20,7 +22,7 @@ async def start_finnhub_ws():
     # Récupère tous les symboles "stock" et "etf" depuis la DB
     symbols = [a.symbol for a in db.query(Asset).filter(Asset.type.in_(["stock", "etf"])).all()]
 
-    url = f"wss://ws.finnhub.io?token={os.getenv("FINNHUB_TOKEN")}"
+    url = f"wss://ws.finnhub.io?token={os.getenv('FINNHUB_TOKEN')}"
 
     async with websockets.connect(url) as ws:
         for s in symbols:
@@ -31,13 +33,14 @@ async def start_finnhub_ws():
 
         # Écoute des messages en continu
         async for message in ws:
+            print("[Finnhub WS Message brut]", message)
             data = json.loads(message)
             if "data" in data:
                 for d in data["data"]:
                     symbol = d["s"]
                     price = float(d["p"])
                     prices[symbol] = price
-                    # print(f"{symbol} : {price}")  # Debug
+                    print(f"{symbol} : {price}")  # Debug
 
 
 async def restart_finnhub_ws():
@@ -50,10 +53,20 @@ async def restart_finnhub_ws():
             await asyncio.sleep(5)
 
 
-def run_ws():
+def run_finnhub_ws():
     loop = asyncio.get_event_loop()
     loop.create_task(restart_finnhub_ws())
 
 
 def get_stock_price(symbol: str):
-    return prices.get(symbol, None)
+    if symbol in prices:
+        return prices[symbol]
+
+    token = os.getenv("FINNHUB_TOKEN")
+    r = requests.get(f"https://finnhub.io/api/v1/quote?symbol={symbol}&token={token}")
+
+    if r.ok:
+        data = r.json()
+        return data.get("c")  # dernier prix
+
+    return None

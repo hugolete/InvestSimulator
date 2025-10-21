@@ -6,6 +6,7 @@ from api.db.models import Asset, Base, User, Trade
 from api.db.db import get_db, engine
 from api.services import profiles
 from api.services.binance_ws import run_ws
+from api.services.finnhub_ws import run_finnhub_ws
 from api.services.trade import buy_asset, sell_asset, convert_currencies
 from api.services.prices import get_prix, get_price_history
 
@@ -16,6 +17,7 @@ app = FastAPI()
 @app.on_event("startup")
 def startup_event():
     run_ws()
+    run_finnhub_ws()
 
 
 @app.get("/")
