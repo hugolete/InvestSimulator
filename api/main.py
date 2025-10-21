@@ -204,7 +204,7 @@ def convert(user_id:int, amount:float, from_symbol:str,to_symbol:str,db: Session
 
 @app.get("/prices/history/{symbol}/{period}")
 def get_history(symbol: str, period: str, db: Session = Depends(get_db)):
-    #TODO tester quand tout le reste sera fait
+    #TODO tester pour action quand get_price_history sera fait
     asset = db.query(Asset).filter(Asset.symbol == symbol).first()
 
     if not asset:
@@ -215,7 +215,7 @@ def get_history(symbol: str, period: str, db: Session = Depends(get_db)):
 
 @app.get("/prices/history/{symbol}")
 def get_global_history(symbol: str, db: Session = Depends(get_db)):
-    #TODO a tester quand tout le reste sera fait
+    #TODO a tester pour action quand get_price_history sera fait
     asset = db.query(Asset).filter(Asset.symbol == symbol).first()
 
     if not asset:
@@ -243,9 +243,9 @@ def get_global_history(symbol: str, db: Session = Depends(get_db)):
 
 @app.get("/prices/percentage/{symbol}/{period}")
 def get_percentage(symbol: str, period: str, db: Session = Depends(get_db)):
-    #TODO a tester
     asset = db.query(Asset).filter(Asset.symbol == symbol).first()
-    before, now = get_price_history(asset,period)
+    before = get_price_history(asset,period)
+    now = get_prix(asset.id)
 
     percentage = ((now - before) / before) * 100
 

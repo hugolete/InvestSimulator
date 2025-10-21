@@ -53,24 +53,33 @@ def get_binance_history(symbol:str,period:str):
     # TODO fonctionne seul, a tester avec api
     # exemple period : "1h"
     new_symbol = symbol+"USDT"
-    new_period = "1w"
+    new_period = "1d"
     limit = 1
 
     # API binance ne permet pas d'aller au dela de la semaine
-    if period == "12h":
+    if period == "1h":
+        limit = 60
+        period = "1m"
+    elif period == "12h":
         limit = 12
         period = "1h"
+    elif period == "1d":
+        limit = 24
+        period = "1h"
+    elif period == "1w":
+        limit = 7
+        period = new_period
     elif period == "1m":
-        limit = 4
+        limit = 31
         period = new_period
     elif period == "6m":
-        limit = 26
+        limit = 183
         period = new_period
     elif period == "1y":
-        limit = 52
+        limit = 365
         period = new_period
     elif period == "5y":
-        limit = 260
+        limit = 1826
         period = new_period
 
     url = "https://api.binance.com/api/v3/klines"

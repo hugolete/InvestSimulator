@@ -24,26 +24,13 @@ def get_prix(asset_id:int):
 
 
 def get_price_history(asset, period:str):
-    #TODO crypto a tester, action (finnhub) a faire
+    #TODO action (finnhub) a faire
     symbol = asset.symbol
 
     if asset.type == "crypto":
         candles = get_binance_history(symbol, period)
 
-        lastIndex = 1
-
-        if period == "12h":
-            lastIndex = 11
-        if period == "1m":
-            lastIndex = 3
-        if period == "6m":
-            lastIndex = 25
-        if period == "1y":
-            lastIndex = 51
-        if period == "5y":
-            lastIndex = 259
-
-        return candles[lastIndex]["close"]
+        return candles[0]["open"]
     elif asset.type == "stock" or asset.type == "etf":
         return 0
     else:
