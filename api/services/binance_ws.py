@@ -50,7 +50,6 @@ def run_ws():
 
 
 def get_binance_history(symbol:str,period:str):
-    # TODO fonctionne seul, a tester avec api
     # exemple period : "1h"
     new_symbol = symbol+"USDT"
     new_period = "1d"

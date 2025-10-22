@@ -206,7 +206,7 @@ def convert(user_id:int, amount:float, from_symbol:str,to_symbol:str,db: Session
 
 @app.get("/prices/history/{symbol}/{period}")
 def get_history(symbol: str, period: str, db: Session = Depends(get_db)):
-    #TODO tester pour action quand get_price_history sera fait
+    #TODO tester pour action
     asset = db.query(Asset).filter(Asset.symbol == symbol).first()
 
     if not asset:
@@ -217,7 +217,7 @@ def get_history(symbol: str, period: str, db: Session = Depends(get_db)):
 
 @app.get("/prices/history/{symbol}")
 def get_global_history(symbol: str, db: Session = Depends(get_db)):
-    #TODO a tester pour action quand get_price_history sera fait
+    #TODO tester pour action
     asset = db.query(Asset).filter(Asset.symbol == symbol).first()
 
     if not asset:

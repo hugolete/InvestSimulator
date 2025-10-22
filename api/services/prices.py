@@ -2,7 +2,7 @@
 from api.db.db import SessionLocal
 from api.db.models import Asset
 from api.services.binance_ws import get_crypto_price, get_binance_history
-from api.services.finnhub_ws import get_stock_price
+from api.services.finnhub_ws import get_stock_price, get_stock_history
 
 
 def get_prix(asset_id:int):
@@ -24,7 +24,6 @@ def get_prix(asset_id:int):
 
 
 def get_price_history(asset, period:str):
-    #TODO action (finnhub) a faire
     symbol = asset.symbol
 
     if asset.type == "crypto":
@@ -32,7 +31,7 @@ def get_price_history(asset, period:str):
 
         return candles[0]["open"]
     elif asset.type == "stock" or asset.type == "etf":
-        return 0
+        return get_stock_history(symbol,period)
     else:
         # placeholder pour bonds
         return 0

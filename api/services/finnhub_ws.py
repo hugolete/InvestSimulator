@@ -1,14 +1,16 @@
 import asyncio
 import json
 import os
-
+import yfinance as yf
+import pandas as pd
+from datetime import datetime, timedelta, timezone
 import requests
 import websockets
 from api.db.db import SessionLocal
 from api.db.models import Asset
 from dotenv import load_dotenv
 
-#TODO a tester, d'abord rajouter actions et etf dans la db
+#TODO rajouter autres actions et etf dans la db
 
 load_dotenv()
 
@@ -70,3 +72,52 @@ def get_stock_price(symbol: str):
         return data.get("c")  # dernier prix
 
     return None
+
+
+def get_stock_history(symbol:str,period:str):
+    # Paramètres compatibles avec Yahoo
+    settings = {
+        "1h": ("1m", "7d"),
+        "12h": ("5m", "60d"),
+        "1d": ("15m", "60d"),
+        "1w": ("1h", "1y"),
+        "1m": ("1d", "1y"),
+        "6m": ("1d", "2y"),
+        "1y": ("1wk", "5y"),
+        "5y": ("1mo", "10y"),
+    }
+
+    # calcul diff entre maintenant et il y a X temps
+    deltas = {
+        "1h": timedelta(hours=1),
+        "12h": timedelta(hours=12),
+        "1d": timedelta(days=1),
+        "1w": timedelta(weeks=1),
+        "1m": timedelta(days=30),
+        "6m": timedelta(days=182),
+        "1y": timedelta(days=365),
+        "5y": timedelta(days=365 * 5)
+    }
+
+    interval, yf_period = settings[period]
+    now = datetime.now(timezone.utc)
+    target_time = now - deltas[period]
+    past_price = 0.0
+
+    print(f"{symbol} ({period} avant)")
+
+    df = yf.download(symbol, period=yf_period, interval=interval, progress=False)
+
+    if df.empty:
+        print("Aucune donnée trouvée.")
+    else:
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = [col[0] for col in df.columns]
+
+        df.index = pd.to_datetime(df.index, utc=True)
+        closest_idx = df.index.get_indexer([target_time], method="nearest")[0]
+
+        past_price = float(df.iloc[closest_idx]["Close"])
+        print(f"Il y a {period} : {round(past_price, 2)} USD")
+
+    return past_price
