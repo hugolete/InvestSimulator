@@ -245,6 +245,7 @@ def get_global_history(symbol: str, db: Session = Depends(get_db)):
 
 @app.get("/prices/percentage/{symbol}/{period}")
 def get_percentage(symbol: str, period: str, db: Session = Depends(get_db)):
+    #TODO tester avec action
     asset = db.query(Asset).filter(Asset.symbol == symbol).first()
     before = get_price_history(asset,period)
     now = get_prix(asset.id)
