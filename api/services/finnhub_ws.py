@@ -6,11 +6,13 @@ import pandas as pd
 from datetime import datetime, timedelta, timezone
 import requests
 import websockets
+from fastapi import HTTPException
 from api.db.db import SessionLocal
 from api.db.models import Asset
 from dotenv import load_dotenv
 
 #TODO rajouter autres actions et etf dans la db
+#TODO etfs
 
 load_dotenv()
 
@@ -102,14 +104,11 @@ def get_stock_history(symbol:str,period:str):
     interval, yf_period = settings[period]
     now = datetime.now(timezone.utc)
     target_time = now - deltas[period]
-    past_price = 0.0
-
-    print(f"{symbol} ({period} avant)")
 
     df = yf.download(symbol, period=yf_period, interval=interval, progress=False)
 
     if df.empty:
-        print("Aucune donnée trouvée.")
+        raise HTTPException(status_code=404, detail="Aucune donnée trouvée")
     else:
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = [col[0] for col in df.columns]
