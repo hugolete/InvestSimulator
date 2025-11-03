@@ -93,6 +93,18 @@ def history(user_id: int, db: Session = Depends(get_db)):
     return result
 
 
+@app.get("/profiles/{user_id}/performance")
+def performance(user_id:int, db: Session = Depends(get_db)):
+    #TODO compte l'argent total investi (50000 usd) et mesure la perf en %
+    pass
+
+
+@app.get("/profiles/{user_id}/allocation")
+def allocation(user_id: int, db: Session = Depends(get_db)):
+    #TODO mesure le % alloué a chaque type d'asset
+    pass
+
+
 @app.post("/profiles")
 def create_profile(name: str, db: Session = Depends(get_db)):
     user = profiles.create_profile(name, db)
