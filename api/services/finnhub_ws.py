@@ -37,14 +37,12 @@ async def start_finnhub_ws():
 
         # Écoute des messages en continu
         async for message in ws:
-            print("[Finnhub WS Message brut]", message)
             data = json.loads(message)
             if "data" in data:
                 for d in data["data"]:
                     symbol = d["s"]
                     price = float(d["p"])
                     prices[symbol] = price
-                    print(f"{symbol} : {price}")  # Debug
 
 
 async def restart_finnhub_ws():
@@ -110,15 +108,17 @@ def get_stock_history(symbol:str,period:str,full_history:bool=False):
     if df.empty:
         raise HTTPException(status_code=404, detail="Aucune donnée trouvée")
     else:
+        df.index = pd.to_datetime(df.index, utc=True)
+
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = [col[0] for col in df.columns]
 
         if full_history:
             df_filtered = df[df.index >= target_time]
+            latest_price = get_stock_price(symbol)
 
-            return df_filtered
+            return df_filtered, latest_price
 
-        df.index = pd.to_datetime(df.index, utc=True)
         closest_idx = df.index.get_indexer([target_time], method="nearest")[0]
 
         past_price = float(df.iloc[closest_idx]["Close"])

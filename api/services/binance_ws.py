@@ -1,8 +1,10 @@
 import asyncio
+from datetime import datetime, timezone
 from binance import AsyncClient, BinanceSocketManager
 from api.db.db import SessionLocal
 from api.db.models import Asset
 import requests
+import pandas as pd
 
 
 prices = {}
@@ -49,9 +51,10 @@ def run_ws():
     loop.create_task(start_binance_ws())
 
 
-def get_binance_history(symbol:str,period:str):
+def get_binance_history(symbol:str,period:str,full_history:bool=False):
     # exemple period : "1h"
     new_symbol = symbol+"USDT"
+    original_period = period
     new_period = "1d"
     limit = 1
 
@@ -99,4 +102,53 @@ def get_binance_history(symbol:str,period:str):
         for c in data
     ]
 
-    return candles
+    if full_history and original_period in ["6m", "1y", "5y"]:
+        candles_filtered = filter_candles(candles)
+
+        return candles_filtered
+    else:
+        return candles
+
+
+def filter_candles(candles):
+    """
+    Garde dans l'historique uniquement les candles correspondant au jour du mois de la date actuelle
+    """
+    now = datetime.now(timezone.utc)
+    target_day = now.day
+    filtered = []
+    last_candle = None
+
+    # Parcourir toutes les candles
+    for candle in candles:
+        dt = datetime.fromtimestamp(candle["timestamp"] / 1000, tz=timezone.utc)
+        candle["datetime"] = dt  # on ajoute pour faciliter
+
+        # On garde la dernière candle à la fin
+        if (last_candle is None) or (candle["timestamp"] > last_candle["timestamp"]):
+            last_candle = candle
+
+    # Pour garder une seule candle par mois correspondant au target_day,
+    # on va stocker le (year, month) déjà pris
+    seen_months = set()
+
+    for candle in candles:
+        dt = candle["datetime"]
+        if dt.day == target_day:
+            ym = (dt.year, dt.month)
+            if ym not in seen_months:
+                filtered.append(candle)
+                seen_months.add(ym)
+
+    # S'assurer que la dernière candle est incluse
+    if last_candle not in filtered:
+        filtered.append(last_candle)
+
+    # Supprimer la clé temporaire datetime avant de retourner
+    for c in filtered:
+        c.pop("datetime", None)
+
+    # Trier par timestamp croissant
+    filtered.sort(key=lambda c: c["timestamp"])
+
+    return filtered

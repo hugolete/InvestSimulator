@@ -257,12 +257,16 @@ if __name__ == "__main__":
 
 
 @app.get("/prices/chart/{symbol}/{period}")
-def chart(symbol: str, period: str):
-    # récupère les données nécessaires pour que le front trace les graphes
-    data = get_price_history(symbol, period,full_history=True)
+def chart(symbol: str, period: str, db: Session = Depends(get_db)):
+    #récupère les données nécessaires pour que le front trace les graphes
+    # TODO a tester pour action
+    asset = db.query(Asset).filter(Asset.symbol == symbol).first()
+    data, latest_price = get_price_history(asset, period,full_history=True)
 
     return {
         "symbol": symbol.upper(),
         "period": period,
-        "points": data
+        "data": data,
+        "latest_price": latest_price
     }
+
