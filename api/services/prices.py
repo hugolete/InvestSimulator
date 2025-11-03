@@ -3,6 +3,7 @@ from api.db.db import SessionLocal
 from api.db.models import Asset
 from api.services.binance_ws import get_crypto_price, get_binance_history
 from api.services.finnhub_ws import get_stock_price, get_stock_history
+import yfinance as yf
 
 
 def get_prix(asset_id:int):
@@ -23,15 +24,22 @@ def get_prix(asset_id:int):
     return price
 
 
-def get_price_history(asset, period:str):
+def get_price_history(asset, period:str, full_history:bool=False):
     symbol = asset.symbol
 
     if asset.type == "crypto":
-        candles = get_binance_history(symbol, period)
+        if full_history:
+            pass
+        else:
+            candles = get_binance_history(symbol, period)
 
-        return candles[0]["open"]
+            return candles[0]["open"]
     elif asset.type == "stock" or asset.type == "etf":
-        return get_stock_history(symbol,period)
+        if full_history:
+            return get_stock_history(symbol,period,full_history=True)
+        else:
+            return get_stock_history(symbol,period)
     else:
         # placeholder pour bonds
         return 0
+

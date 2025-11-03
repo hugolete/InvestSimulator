@@ -76,7 +76,7 @@ def get_stock_price(symbol: str):
     return None
 
 
-def get_stock_history(symbol:str,period:str):
+def get_stock_history(symbol:str,period:str,full_history:bool=False):
     # Paramètres compatibles avec Yahoo
     settings = {
         "1h": ("1m", "7d"),
@@ -112,6 +112,11 @@ def get_stock_history(symbol:str,period:str):
     else:
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = [col[0] for col in df.columns]
+
+        if full_history:
+            df_filtered = df[df.index >= target_time]
+
+            return df_filtered
 
         df.index = pd.to_datetime(df.index, utc=True)
         closest_idx = df.index.get_indexer([target_time], method="nearest")[0]

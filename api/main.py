@@ -254,3 +254,15 @@ def get_percentage(symbol: str, period: str, db: Session = Depends(get_db)):
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+
+
+@app.get("/prices/chart/{symbol}/{period}")
+def chart(symbol: str, period: str):
+    # récupère les données nécessaires pour que le front trace les graphes
+    data = get_price_history(symbol, period,full_history=True)
+
+    return {
+        "symbol": symbol.upper(),
+        "period": period,
+        "points": data
+    }
