@@ -258,10 +258,12 @@ if __name__ == "__main__":
 
 @app.get("/prices/chart/{symbol}/{period}")
 def chart(symbol: str, period: str, db: Session = Depends(get_db)):
-    #récupère les données nécessaires pour que le front trace les graphes
-    # TODO a tester pour action
+    # récupère les données nécessaires pour que le front trace les graphes
     asset = db.query(Asset).filter(Asset.symbol == symbol).first()
     data, latest_price = get_price_history(asset, period,full_history=True)
+
+    if hasattr(data, "to_dict"):
+        data = data.to_dict(orient="records")
 
     return {
         "symbol": symbol.upper(),
@@ -269,4 +271,3 @@ def chart(symbol: str, period: str, db: Session = Depends(get_db)):
         "data": data,
         "latest_price": latest_price
     }
-

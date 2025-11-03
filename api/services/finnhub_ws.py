@@ -114,6 +114,7 @@ def get_stock_history(symbol:str,period:str,full_history:bool=False):
             df.columns = [col[0] for col in df.columns]
 
         if full_history:
+            # retient que la période mentionnée pour le full (voir dict settings)
             df_filtered = df[df.index >= target_time]
             latest_price = get_stock_price(symbol)
 

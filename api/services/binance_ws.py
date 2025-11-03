@@ -103,6 +103,7 @@ def get_binance_history(symbol:str,period:str,full_history:bool=False):
     ]
 
     if full_history and original_period in ["6m", "1y", "5y"]:
+        # trie mois par mois pour ne pas créer des centaines de bougies
         candles_filtered = filter_candles(candles)
 
         return candles_filtered
