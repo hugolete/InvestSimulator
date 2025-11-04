@@ -30,6 +30,7 @@ def get_portfolio(user_id: int, db: Session):
 
     result.append({"total_worth": total_worth})
     result.append({"performance": get_performance(user_id,db)})
+    result.append({"allocation": get_allocation(user_id,db)})
 
     return result
 
@@ -94,3 +95,64 @@ def get_performance(user_id:int,db:Session):
     perf_pourcentage = ((total_worth / original_amount) * 100) - 100
 
     return perf_pourcentage
+
+
+def get_allocation(user_id:int,db:Session):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Profil introuvable")
+
+    userAssets = db.query(UserAsset).filter(UserAsset.user_id == user_id).all()
+    portfolio_allocation = {
+        "crypto":0,
+        "currency":0,
+        "stock":0,
+        "etf":0
+    }
+    portfolio_allocation_pct = {}
+    total_worth = 0.0
+
+    for a in userAssets:
+        asset = db.query(Asset).filter(Asset.id == a.asset_id).first()
+        type = asset.type
+        price = get_prix(a.asset_id) or 0.0
+        worth = a.quantity * price
+        total_worth += worth
+
+        portfolio_allocation[type] += worth
+
+    if total_worth == 0:
+        raise HTTPException(status_code=400, detail="Erreur : le portfolio est vide")
+
+    portfolio_allocation_pct = {
+        "crypto":(portfolio_allocation["crypto"]/total_worth * 100),
+        "currency":(portfolio_allocation["currency"]/total_worth * 100),
+        "stock":(portfolio_allocation["stock"]/total_worth * 100),
+        "etf":(portfolio_allocation["etf"]/total_worth * 100)
+    }
+
+    return portfolio_allocation_pct
+
+
+def get_portfolio_by_asset_type(user_id:int,db:Session):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Profil introuvable")
+
+    userAssets = db.query(UserAsset).filter(UserAsset.user_id == user_id).all()
+    portfolio_allocation = {
+        "crypto": 0,
+        "currency": 0,
+        "stock": 0,
+        "etf": 0
+    }
+
+    for a in userAssets:
+        asset = db.query(Asset).filter(Asset.id == a.asset_id).first()
+        type = asset.type
+        price = get_prix(a.asset_id) or 0.0
+        worth = a.quantity * price
+
+        portfolio_allocation[type] += worth
+
+    return portfolio_allocation

@@ -96,17 +96,19 @@ def history(user_id: int, db: Session = Depends(get_db)):
 @app.get("/profiles/{user_id}/performance")
 def performance(user_id:int, db: Session = Depends(get_db)):
     # compte l'argent total investi (50000 usd) et mesure la perf en %
-    perf = profiles.get_performance(user_id, db)
-
-    return {
-        'performance': perf
-    }
+    return profiles.get_performance(user_id, db)
 
 
 @app.get("/profiles/{user_id}/allocation")
 def allocation(user_id: int, db: Session = Depends(get_db)):
-    #TODO mesure le % alloué a chaque type d'asset
-    pass
+    # mesure le % alloué a chaque type d'asset
+    return profiles.get_allocation(user_id, db)
+
+
+@app.get("/profiles/{user_id}/assettypes")
+def portfolio_assettype(user_id: int, db: Session = Depends(get_db)):
+    # renvoie la valeur totale pour chaque type d'asset détenu
+    return profiles.get_portfolio_by_asset_type(user_id, db)
 
 
 @app.post("/profiles")
