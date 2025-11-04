@@ -29,6 +29,8 @@ def get_portfolio(user_id: int, db: Session):
         })
 
     result.append({"total_worth": total_worth})
+    result.append({"performance": get_performance(user_id,db)})
+
     return result
 
 
@@ -72,3 +74,23 @@ def delete_profile(user_id: int, db: Session):
     db.query(Trade).filter(Trade.user_id == user_id).delete()
     db.delete(user)
     db.commit()
+
+
+def get_performance(user_id:int,db:Session):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Profil introuvable")
+
+    original_amount = 50000
+    userAssets = db.query(UserAsset).filter(UserAsset.user_id == user_id).all()
+    total_worth = 0.0
+
+    for a in userAssets:
+        asset = db.query(Asset).filter(Asset.id == a.asset_id).first()
+        price = get_prix(a.asset_id) or 0.0
+        worth = a.quantity * price
+        total_worth += worth
+
+    perf_pourcentage = ((total_worth / original_amount) * 100) - 100
+
+    return perf_pourcentage

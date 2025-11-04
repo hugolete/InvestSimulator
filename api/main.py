@@ -7,6 +7,7 @@ from api.db.db import get_db, engine
 from api.services import profiles
 from api.services.binance_ws import run_ws
 from api.services.finnhub_ws import run_finnhub_ws
+from api.services.profiles import get_performance
 from api.services.trade import buy_asset, sell_asset, convert_currencies
 from api.services.prices import get_prix, get_price_history
 
@@ -95,8 +96,12 @@ def history(user_id: int, db: Session = Depends(get_db)):
 
 @app.get("/profiles/{user_id}/performance")
 def performance(user_id:int, db: Session = Depends(get_db)):
-    #TODO compte l'argent total investi (50000 usd) et mesure la perf en %
-    pass
+    # compte l'argent total investi (50000 usd) et mesure la perf en %
+    perf = get_performance(user_id, db)
+
+    return {
+        'performance': perf
+    }
 
 
 @app.get("/profiles/{user_id}/allocation")
