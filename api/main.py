@@ -10,6 +10,7 @@ from api.services.finnhub_ws import run_finnhub_ws
 from api.services.trade import buy_asset, sell_asset, convert_currencies
 from api.services.prices import get_prix, get_price_history
 
+
 Base.metadata.create_all(bind=engine)
 app = FastAPI()
 
@@ -143,12 +144,7 @@ def delete_profile(user_id: int, db: Session = Depends(get_db)):
 # acheter un asset
 @app.post("/buy")
 def buy_endpoint(user_id:int, symbol:str, amount_fiat:float, currency:str="USD", db: Session = Depends(get_db)):
-    symbol_currency = ""
-
-    if currency == "EUR":
-        symbol_currency = "€"
-    elif currency == "USD":
-        symbol_currency = "$"
+    symbol_currency = "$"
 
     user = db.query(User).filter(User.id == user_id).first()
     asset = db.query(Asset).filter(Asset.symbol == symbol).first()

@@ -11,8 +11,7 @@ from api.db.db import SessionLocal
 from api.db.models import Asset
 from dotenv import load_dotenv
 
-#TODO rajouter autres actions et etf dans la db
-#TODO etfs
+#TODO historique etf
 
 load_dotenv()
 

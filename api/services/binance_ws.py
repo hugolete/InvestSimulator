@@ -4,7 +4,6 @@ from binance import AsyncClient, BinanceSocketManager
 from api.db.db import SessionLocal
 from api.db.models import Asset
 import requests
-import pandas as pd
 
 
 prices = {}
