@@ -11,7 +11,6 @@ from api.db.db import SessionLocal
 from api.db.models import Asset
 from dotenv import load_dotenv
 
-#TODO historique etf
 
 load_dotenv()
 
@@ -122,6 +121,6 @@ def get_stock_history(symbol:str,period:str,full_history:bool=False):
         closest_idx = df.index.get_indexer([target_time], method="nearest")[0]
 
         past_price = float(df.iloc[closest_idx]["Close"])
-        print(f"Il y a {period} : {round(past_price, 2)} USD")
+        #print(f"Il y a {period} : {round(past_price, 2)} USD")
 
     return past_price
