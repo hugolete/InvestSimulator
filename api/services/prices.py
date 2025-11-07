@@ -34,7 +34,7 @@ def get_price_history(asset, period:str, full_history:bool=False):
         else:
             candles = get_binance_history(symbol, period)
             return candles[0]["open"]
-    elif asset.type == "stock":
+    elif asset.type == "stock" or asset.type == "etf":
         if full_history:
             return get_stock_history(symbol,period,full_history=True) # 2 variables : dataframe et dernier prix
         else:
