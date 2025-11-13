@@ -20,6 +20,8 @@ def startup_event():
     run_ws()
     run_finnhub_ws()
 
+    print("Startup terminé")
+
 
 @app.get("/")
 def home():
@@ -39,10 +41,18 @@ def get_asset_price(symbol: str, db: Session = Depends(get_db)):
 
     price = get_prix(asset.id)
 
+    if asset.type == "crypto":
+        sector = "Crypto"
+    elif asset.type == "etf":
+        sector = "ETF"
+    else:
+        sector = asset.sector
+
     return {
         "symbol": asset.symbol,
         "name": asset.name,
         "type": asset.type,
+        "sector": sector,
         "price": price
     }
 
@@ -56,10 +66,18 @@ def get_assets(db: Session = Depends(get_db)):
     for a in assets:
         price = get_prix(a.id)
 
+        if a.type == "crypto":
+            sector = "Crypto"
+        elif a.type == "etf":
+            sector = "ETF"
+        else:
+            sector = a.sector
+
         result.append({
             "symbol": a.symbol,
             "name": a.name,
             "type": a.type,
+            "sector": sector,
             "price": price
         })
 

@@ -20,10 +20,18 @@ def get_portfolio(user_id: int, db: Session):
         worth = a.quantity * price
         total_worth += worth
 
+        if asset.type == "crypto":
+            sector = "Crypto"
+        elif asset.type == "etf":
+            sector = "ETF"
+        else:
+            sector = asset.sector
+
         result.append({
             "symbol": asset.symbol,
             "name": asset.name,
             "type": asset.type,
+            "sector": sector,
             "quantity": a.quantity,
             "worth": worth
         })
@@ -87,7 +95,6 @@ def get_performance(user_id:int,db:Session):
     total_worth = 0.0
 
     for a in userAssets:
-        asset = db.query(Asset).filter(Asset.id == a.asset_id).first()
         price = get_prix(a.asset_id) or 0.0
         worth = a.quantity * price
         total_worth += worth
