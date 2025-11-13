@@ -23,7 +23,7 @@ def startup_event():
     print("Startup terminé")
 
 
-@app.get("/")
+@app.get("/api")
 def home():
     return {
         "message": "Bienvenue sur le Invest Simulator API !",
@@ -32,7 +32,7 @@ def home():
 
 
 # récup prix d'une crypto
-@app.get("/assets/{symbol}")
+@app.get("/api/assets/{symbol}")
 def get_asset_price(symbol: str, db: Session = Depends(get_db)):
     asset = db.query(Asset).filter(Asset.symbol == symbol.upper()).first()
 
@@ -58,7 +58,7 @@ def get_asset_price(symbol: str, db: Session = Depends(get_db)):
 
 
 # récup tous les prix en même temps
-@app.get("/assets")
+@app.get("/api/assets")
 def get_assets(db: Session = Depends(get_db)):
     assets = db.query(Asset).all()
     result = []
@@ -93,13 +93,13 @@ def get_assets(db: Session = Depends(get_db)):
 
 
 # récup profil (nom + valeur totale + détails du portfolio)
-@app.get("/profiles/{user_id}")
+@app.get("/api/profiles/{user_id}")
 def portfolio(user_id: int, db: Session = Depends(get_db)):
     return profiles.get_portfolio(user_id, db)
 
 
 # récup historique des trades d'un profil
-@app.get("/profiles/{user_id}/history")
+@app.get("/api/profiles/{user_id}/history")
 def history(user_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     tradeHistory = db.query(Trade).filter(Trade.user_id == user.id).all()
@@ -120,25 +120,25 @@ def history(user_id: int, db: Session = Depends(get_db)):
     return result
 
 
-@app.get("/profiles/{user_id}/performance")
+@app.get("/api/profiles/{user_id}/performance")
 def performance(user_id:int, db: Session = Depends(get_db)):
     # compte l'argent total investi (50000 usd) et mesure la perf en %
     return profiles.get_performance(user_id, db)
 
 
-@app.get("/profiles/{user_id}/allocation")
+@app.get("/api/profiles/{user_id}/allocation")
 def allocation(user_id: int, db: Session = Depends(get_db)):
     # mesure le % alloué a chaque type d'asset
     return profiles.get_allocation(user_id, db)
 
 
-@app.get("/profiles/{user_id}/assettypes")
+@app.get("/api/profiles/{user_id}/assettypes")
 def portfolio_assettype(user_id: int, db: Session = Depends(get_db)):
     # renvoie la valeur totale pour chaque type d'asset détenu
     return profiles.get_portfolio_by_asset_type(user_id, db)
 
 
-@app.post("/profiles")
+@app.post("/api/profiles")
 def create_profile(name: str, db: Session = Depends(get_db)):
     user = profiles.create_profile(name, db)
 
@@ -149,7 +149,7 @@ def create_profile(name: str, db: Session = Depends(get_db)):
     }
 
 
-@app.put("/profiles/{user_id}/edit")
+@app.put("/api/profiles/{user_id}/edit")
 def edit_profile(user_id: int, new_name: str, db: Session = Depends(get_db)):
     user = profiles.edit_profile(user_id, new_name, db)
 
@@ -160,7 +160,7 @@ def edit_profile(user_id: int, new_name: str, db: Session = Depends(get_db)):
     }
 
 
-@app.delete("/profiles/{user_id}/delete")
+@app.delete("/api/profiles/{user_id}/delete")
 def delete_profile(user_id: int, db: Session = Depends(get_db)):
     profiles.delete_profile(user_id, db)
 
@@ -168,7 +168,7 @@ def delete_profile(user_id: int, db: Session = Depends(get_db)):
 
 
 # acheter un asset
-@app.post("/buy")
+@app.post("/api/buy")
 def buy_endpoint(user_id:int, symbol:str, amount_fiat:float, currency:str="USD", db: Session = Depends(get_db)):
     symbol_currency = "$"
 
@@ -190,7 +190,7 @@ def buy_endpoint(user_id:int, symbol:str, amount_fiat:float, currency:str="USD",
 
 
 # vendre un asset possédé par le profil
-@app.post("/sell")
+@app.post("/api/sell")
 def sell_endpoint(user_id:int, symbol:str, asset_amount:float,currency:str="USD",db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     asset = db.query(Asset).filter(Asset.symbol == symbol).first()
@@ -216,7 +216,7 @@ def sell_endpoint(user_id:int, symbol:str, asset_amount:float,currency:str="USD"
 
 
 # convertir entre USD et EUR
-@app.post("/convert")
+@app.post("/api/convert")
 def convert(user_id:int, amount:float, from_symbol:str,to_symbol:str,db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
 
@@ -244,7 +244,7 @@ def convert(user_id:int, amount:float, from_symbol:str,to_symbol:str,db: Session
     }
 
 
-@app.get("/prices/history/{symbol}/{period}")
+@app.get("/api/prices/history/{symbol}/{period}")
 def get_history(symbol: str, period: str, db: Session = Depends(get_db)):
     asset = db.query(Asset).filter(Asset.symbol == symbol).first()
 
@@ -254,7 +254,7 @@ def get_history(symbol: str, period: str, db: Session = Depends(get_db)):
     return get_price_history(asset, period)
 
 
-@app.get("/prices/history/{symbol}")
+@app.get("/api/prices/history/{symbol}")
 def get_global_history(symbol: str, db: Session = Depends(get_db)):
     asset = db.query(Asset).filter(Asset.symbol == symbol).first()
 
@@ -281,7 +281,7 @@ def get_global_history(symbol: str, db: Session = Depends(get_db)):
     }
 
 
-@app.get("/prices/percentage/{symbol}/{period}")
+@app.get("/api/prices/percentage/{symbol}/{period}")
 def get_percentage(symbol: str, period: str, db: Session = Depends(get_db)):
     asset = db.query(Asset).filter(Asset.symbol == symbol).first()
     before = get_price_history(asset,period)
@@ -296,7 +296,7 @@ if __name__ == "__main__":
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
 
 
-@app.get("/prices/chart/{symbol}/{period}")
+@app.get("/api/prices/chart/{symbol}/{period}")
 def chart(symbol: str, period: str, db: Session = Depends(get_db)):
     # récupère les données nécessaires pour que le front trace les graphes
     asset = db.query(Asset).filter(Asset.symbol == symbol).first()
