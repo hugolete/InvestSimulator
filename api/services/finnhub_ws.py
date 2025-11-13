@@ -72,6 +72,28 @@ def get_stock_price(symbol: str):
     return None
 
 
+def get_stock_prices(tickers):
+    data = yf.download(
+        tickers=" ".join(tickers),
+        period="1d",
+        interval="1m",
+        group_by="ticker",
+        threads=True,
+        progress=False
+    )
+
+    prices = {}
+
+    for symbol in tickers:
+        try:
+            last_close = data[symbol]["Close"].dropna().iloc[-1]
+            prices[symbol] = round(float(last_close),2)
+        except Exception:
+            prices[symbol] = None  # en cas de symbole exotique non trouvé
+
+    return prices
+
+
 def get_stock_history(symbol:str,period:str,full_history:bool=False):
     # Paramètres compatibles avec Yahoo
     settings = {
