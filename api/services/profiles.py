@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from api.db.models import User, Asset, UserAsset, Trade
-from api.main import get_prix
+from api.services.prices import get_prix
 
 
 def get_portfolio(user_id: int, db: Session):

@@ -2,13 +2,13 @@ from datetime import datetime, timezone
 import uvicorn
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
-from api.db.models import Asset, Base, User, Trade
-from api.db.db import get_db, engine
-from api.services import profiles
-from api.services.binance_ws import run_ws
-from api.services.finnhub_ws import run_finnhub_ws, get_stock_prices
-from api.services.trade import buy_asset, sell_asset, convert_currencies
-from api.services.prices import get_prix, get_price_history
+from .db.models import Asset, Base, User, Trade
+from .db.db import get_db, engine
+from .services import profiles
+from .services.binance_ws import run_ws
+from .services.finnhub_ws import run_finnhub_ws, get_stock_prices
+from .services.trade import buy_asset, sell_asset, convert_currencies
+from .services.prices import get_prix, get_price_history
 
 
 Base.metadata.create_all(bind=engine)
