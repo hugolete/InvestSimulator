@@ -9,10 +9,19 @@ from .services.binance_ws import run_ws
 from .services.finnhub_ws import run_finnhub_ws, get_stock_prices
 from .services.trade import buy_asset, sell_asset, convert_currencies
 from .services.prices import get_prix, get_price_history
+from fastapi.middleware.cors import CORSMiddleware
 
 
 Base.metadata.create_all(bind=engine)
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"], #autorise le site react a interroger
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.on_event("startup")
