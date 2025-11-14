@@ -1,24 +1,31 @@
-import logo from './logo.svg';
-import './App.css';
+import { useState } from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Home from "./pages/Home";
+import Dashboard from "./pages/Dashboard";
+import CreateProfile from "./pages/CreateProfile";
 
 function App() {
+  const [profileId, setProfileId] = useState(null);
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+      <Router>
+        <Routes>
+          {/* Page d'accueil */}
+          <Route
+              path="/"
+              element={<Home onSelectProfile={setProfileId} />}
+          />
+
+          {/* Page pour créer un profil */}
+          <Route path="/create-profile" element={<CreateProfile />} />
+
+          {/* Dashboard dépend du profil */}
+          <Route
+              path="/dashboard"
+              element={<Dashboard profileId={profileId} />}
+          />
+        </Routes>
+      </Router>
   );
 }
 
