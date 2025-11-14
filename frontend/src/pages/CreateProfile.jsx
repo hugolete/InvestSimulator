@@ -23,18 +23,20 @@ export default function CreateProfile() {
     };
 
     return (
-        <div>
+        <div style={{ maxWidth: 400, margin: "80px auto", textAlign: "center" }}>
             <h1>Créer un profil</h1>
-
-            <form onSubmit={handleSubmit}>
-                <input
-                    type="text"
-                    placeholder="Nom du profil"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                />
-                <button type="submit">Créer</button>
-            </form>
+                <form onSubmit={handleSubmit}>
+                    <input
+                        type="text"
+                        placeholder="Nom du profil"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                    />
+                    <button
+                        type="submit"
+                        style={{marginLeft: "10px"}}
+                    >Créer</button>
+                </form>
         </div>
     );
 }
