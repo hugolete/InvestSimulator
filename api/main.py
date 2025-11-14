@@ -138,6 +138,11 @@ def portfolio_assettype(user_id: int, db: Session = Depends(get_db)):
     return profiles.get_portfolio_by_asset_type(user_id, db)
 
 
+@app.get("/api/profiles")
+def get_profiles(db: Session = Depends(get_db)):
+    return profiles.get_profiles(db)
+
+
 @app.post("/api/profiles")
 def create_profile(name: str, db: Session = Depends(get_db)):
     user = profiles.create_profile(name, db)

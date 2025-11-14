@@ -163,3 +163,16 @@ def get_portfolio_by_asset_type(user_id:int,db:Session):
         portfolio_allocation[type] += worth
 
     return portfolio_allocation
+
+
+def get_profiles(db:Session):
+    users = db.query(User).all()
+    profiles = []
+
+    for user in users:
+        profiles.append({
+            "id": user.id,
+            "name": user.name
+        })
+
+    return users
