@@ -12,6 +12,7 @@ def get_portfolio(user_id: int, db: Session):
     userAssets = db.query(UserAsset).filter(UserAsset.user_id == user_id).all()
 
     result = []
+    result.append({"profileName": user.name})
     total_worth = 0.0
 
     for a in userAssets:
