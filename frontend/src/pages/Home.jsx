@@ -8,10 +8,20 @@ export default function Home({ onSelectProfile }) {
     const navigate = useNavigate();
 
     useEffect(() => {
-        getProfiles().then(setProfiles);
+        getProfiles().then((data) => {
+            setProfiles(data);
+            if (data.length > 0) {
+                setSelected(data[0].id); // profil par défaut : le 1er
+            }
+        });
     }, []);
 
     const disabled = profiles.length === 0;
+
+    const handleContinue = () => {
+        onSelectProfile(selected);
+        navigate("/dashboard")
+    }
 
     return (
         <div style={{ maxWidth: 400, margin: "80px auto", textAlign: "center" }}>
@@ -20,7 +30,10 @@ export default function Home({ onSelectProfile }) {
             <select
                 disabled={disabled}
                 value={selected}
-                onChange={(e) => setSelected(e.target.value)}
+                onChange={(e) => {
+                    setSelected(e.target.value);
+                    console.log("Profil sélectionné par l'utilisateur:", e.target.value);
+                }}
                 style={{ width: "100%", padding: 10, marginTop: 20 }}
             >
                 {disabled && <option>Aucun profil</option>}
@@ -32,8 +45,8 @@ export default function Home({ onSelectProfile }) {
             </select>
 
             <button
-                onClick={() => onSelectProfile(selected)}
-                disabled={!selected}
+                onClick={handleContinue}
+                disabled={disabled}
                 style={{ marginTop: 20, padding: "10px 40px" }}
             >
                 Continuer
