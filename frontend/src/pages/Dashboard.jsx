@@ -101,11 +101,12 @@ function Dashboard({ profileId, onChangeProfile }) {
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                             style={{ padding: "8px 12px", cursor: "pointer" }}
                         >
-                            {isSidebarOpen ? '< Masquer ' : '☰'}
+                            {isSidebarOpen ? '<' : '☰'}
                         </button>
                         <h2>InvestSimulator</h2>
                     </div>
 
+                    {/* titre dynamique */}
                     <PageTitle/>
 
                     {/* bloc de droite */}
