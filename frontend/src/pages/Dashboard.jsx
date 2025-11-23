@@ -3,6 +3,7 @@ import {useNavigate} from "react-router-dom";
 import PortfolioHeader from "../components/PortfolioHeader";
 import { useLocation, useParams } from "react-router-dom";
 import PageTitle from "../components/PageTitle";
+import Sidebar from "../components/Sidebar";
 
 function Dashboard({ profileId, onChangeProfile }) {
     const [profile, setProfile] = useState(null);
@@ -87,23 +88,7 @@ function Dashboard({ profileId, onChangeProfile }) {
     return (
         <div className="dashboard-container" style={{display: "flex", height: "100vh"}}>
             {/* sidebar gauche (liste à compléter plus tard) */}
-            <aside
-                style={{
-                    width: "250px",
-                    borderRight: "1px solid #ccc",
-                    padding: "1rem",
-                    display: isSidebarOpen ? 'block' : 'none',
-                    height: "100%"
-                }}
-            >
-                <input
-                    type="search"
-                    placeholder="Recherche..."
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    style={{width: "100%", padding: "0.5rem", marginTop: "1rem"}}
-                />
-            </aside>
+            <Sidebar isOpen={isSidebarOpen} />
 
             {/* main content */}
             <main style={{flexGrow: 1, padding: "1rem"}}>
