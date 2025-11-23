@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {useNavigate} from "react-router-dom";
+import PortfolioHeader from "../components/PortfolioHeader";
 
 function Dashboard({ profileId, onChangeProfile }) {
     const [profile, setProfile] = useState(null);
@@ -118,9 +119,8 @@ function Dashboard({ profileId, onChangeProfile }) {
                         <h2>InvestSimulator</h2>
                     </div>
 
-                    {/* TODO bloc central du header avec "Dashboard" ici, et le nom de la ressource consultée pour les autres pages */}
                     <div style={{textAlign: "center"}}>
-                        <div><h1>Test</h1></div>
+                        <div><h1>Dashboard</h1></div>
                     </div>
 
                     {/* bloc de droite */}
@@ -140,6 +140,7 @@ function Dashboard({ profileId, onChangeProfile }) {
 
                 <section>
                     {/* contenu du dashboard */}
+                    <PortfolioHeader profileId={profileId} />
                 </section>
             </main>
 
