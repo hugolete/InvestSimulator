@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import {useNavigate} from "react-router-dom";
 import PortfolioHeader from "../components/PortfolioHeader";
+import { useLocation, useParams } from "react-router-dom";
+import PageTitle from "../components/PageTitle";
 
 function Dashboard({ profileId, onChangeProfile }) {
     const [profile, setProfile] = useState(null);
@@ -119,9 +121,7 @@ function Dashboard({ profileId, onChangeProfile }) {
                         <h2>InvestSimulator</h2>
                     </div>
 
-                    <div style={{textAlign: "center"}}>
-                        <div><h1>Dashboard</h1></div>
-                    </div>
+                    <PageTitle/>
 
                     {/* bloc de droite */}
                     <div style={{textAlign: "right"}}>
