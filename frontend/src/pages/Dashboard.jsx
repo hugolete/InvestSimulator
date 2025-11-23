@@ -1,13 +1,11 @@
 import React, { useEffect, useState } from "react";
 import {useNavigate} from "react-router-dom";
 import PortfolioHeader from "../components/PortfolioHeader";
-import { useLocation, useParams } from "react-router-dom";
 import PageTitle from "../components/PageTitle";
 import Sidebar from "../components/Sidebar";
 
 function Dashboard({ profileId, onChangeProfile }) {
     const [profile, setProfile] = useState(null);
-    const [searchTerm, setSearchTerm] = useState("");
     const [isLoading, setIsLoading] = useState(true);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isProfileInfoOpen, setIsProfileInfoOpen] = useState(false);
