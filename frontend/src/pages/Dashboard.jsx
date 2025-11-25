@@ -85,8 +85,8 @@ function Dashboard({ profileId, onChangeProfile }) {
 
     return (
         <div className="dashboard-container" style={{display: "flex", height: "100vh"}}>
-            {/* sidebar gauche (liste à compléter plus tard) */}
-            <Sidebar isOpen={isSidebarOpen} />
+            {/* sidebar gauche*/}
+            <Sidebar isOpen={isSidebarOpen} profileId={profileId} />
 
             {/* main content */}
             <main style={{flexGrow: 1, padding: "1rem"}}>
@@ -128,7 +128,7 @@ function Dashboard({ profileId, onChangeProfile }) {
                 </section>
             </main>
 
-            {/* rendu fenêtre info profil */}
+            {/* rendu conditionnel : fenêtre info profil */}
             {isProfileInfoOpen && (
                 <div className="profile-info-overlay"
                     // fond sombre prend tout l'écran
@@ -185,7 +185,7 @@ function Dashboard({ profileId, onChangeProfile }) {
                 </div>
             )}
 
-            {/* rendu fenêtre modif nom profil */}
+            {/* rendu conditionnel :  fenêtre modif nom profil */}
             {isProfileEditOpen && (
                 <div className="profile-edit-overlay"
                      style={{

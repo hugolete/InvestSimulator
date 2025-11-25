@@ -1,15 +1,36 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {getAssets} from "../api/assets";
+import {addFavorite, getFavorites, deleteFavorite} from "../api/favorites";
 
-export default function Sidebar({isOpen}){
+export default function Sidebar({isOpen, profileId}) {
     const navigate = useNavigate();
     const [allAssets, setAllAssets] = useState([]);
     const [search, setSearch] = useState("");
+    const [favorites, setFavorites] = useState([])
+    const [showAdd, setShowAdd] = useState(false)
+    const [showRemove, setShowRemove] = useState(false)
 
+    // récup liste des assets
     useEffect(() => {
         getAssets().then(setAllAssets);
     }, []);
+
+    //récup des favoris de l'user
+    useEffect(() => {
+        fetchFavorites();
+    }, [profileId]);
+
+    const fetchFavorites = () => {
+        getFavorites(profileId).then(setFavorites)
+            .catch(err => {
+                console.error(err);
+                setFavorites([]);
+            });
+    }
+
+    const addableAssets = allAssets.filter(a => !favorites.includes(a.symbol))
+    const removableAssets = allAssets.filter(a => favorites.includes(a.symbol))
 
     const filteredAssets = search.length > 0 ? allAssets.filter
         (asset =>
@@ -22,6 +43,26 @@ export default function Sidebar({isOpen}){
         navigate(`/asset/${symbol}`);
         setSearch("");
     }
+
+    const handleAddFavorite = async (symbol) => {
+        try {
+            await addFavorite(profileId, symbol);
+            fetchFavorites(); // refresh de la liste
+            setShowAdd(false); //fermeture fenetre
+        } catch (error) {
+            console.error("Erreur lors de l'ajout du favori:", error);
+        }
+    };
+
+    const handleDeleteFavorite = async (symbol) => {
+        try {
+            await deleteFavorite(profileId, symbol);
+            fetchFavorites();
+            setShowRemove(false);
+        } catch (error) {
+            console.error("Erreur lors de la suppression du favori:", error);
+        }
+    };
 
     const topAssetsSymbols = ["BTC", "NVDA", "AAPL", "QQQ", "SPY"];
     const topAssets = allAssets.filter(a => topAssetsSymbols.includes(a.symbol));
@@ -98,27 +139,202 @@ export default function Sidebar({isOpen}){
 
                     <div className="favoris" style={{
                         display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between"
+                        flexDirection: "column",
                     }}>
-                        <h3>Favoris</h3>
-                        <div className="buttons" style={{
+                        <div className="favoris-header" style={{
                             display: "flex",
-                            gap: "0.7rem",
-                            alignItems: "center"
+                            justifyContent: 'space-between',
+                            alignItems: "center",
                         }}>
-                            <button>+</button>
-                            <button>-</button>
+                            <h3>Favoris</h3>
+                            <div className="boutons" style={{
+                                display: "flex",
+                                gap: "0.7rem",
+                                alignItems: "center",
+                            }}>
+                                <button onClick={() => {
+                                    setShowAdd(!showAdd);
+                                    setShowRemove(false);
+                                }}
+                                >+</button>
+                                <button onClick={() => {
+                                    setShowRemove(!showRemove);
+                                    setShowAdd(false);
+                                }}
+                                >-</button>
+                            </div>
                         </div>
-                    </div>
-                    <div>
-                        {/*TODO*/}
+                        <div className="favoris-content">
+                            {favorites.map(symbol => {
+                                const asset = allAssets.find(asset => asset.symbol === symbol);
+
+                                if (!asset) {
+                                    return null;
+                                }
+
+                                return(
+                                    <div
+                                        key={asset.symbol}
+                                        onClick={() => handleAssetClick(asset.symbol)}
+                                        style={{
+                                            padding: "0.5rem 0",
+                                            cursor: "pointer"
+                                        }}
+                                    >
+                                        <strong>{asset.symbol}</strong>
+                                        <div style={{ fontSize: "0.8rem", color: "gray" }}>
+                                            {asset.name}
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+
+                        {/* rendu conditionnel : pour le menu d'ajout aux favoris */}
+                        {showAdd && (
+                            <div className="favorite-add-overlay"
+                                 style={{
+                                     position: 'fixed',
+                                     top: 0,
+                                     left: 0,
+                                     width: '100%',
+                                     height: '100%',
+                                     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                                     display: 'flex',
+                                     justifyContent: 'center',
+                                     alignItems: 'center',
+                                     zIndex: 1001 // zIndex légèrement supérieur si les deux fenetres sont ouvertes
+                                 }}
+                            >
+                                <div className="favorite-add"
+                                     style={{
+                                         backgroundColor: 'white',
+                                         padding: '25px',
+                                         borderRadius: '8px',
+                                         width: '350px',
+                                         boxShadow: '0 5px 15px rgba(0, 0, 0, 0.3)',
+                                         onClickCapture: (e) => e.stopPropagation()
+                                     }}
+                                >
+                                    <div
+                                        className="favorite-add-header"
+                                        style={{
+                                            display: 'flex',
+                                            gap:'12px',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                        }}
+                                    >
+                                        <h4>Ajouter un asset aux favoris</h4>
+                                        <button
+                                            onClick={() => {setShowAdd(false)}}
+                                            style={{
+                                                padding: '12px 20px'
+                                            }}>Fermer</button>
+                                    </div>
+                                    <div className="favorite-add-assets" style={{
+                                        marginBottom: '15px',
+                                        maxHeight: '400px',
+                                        overflowY: 'auto',
+                                        paddingRight: '10px'
+                                    }}>
+                                        {addableAssets.map(asset => (
+                                            <div
+                                                key={asset.symbol}
+                                                onClick={() => handleAddFavorite(asset.symbol)}
+                                                style={{
+                                                    padding: "0.5rem 0",
+                                                    cursor: "pointer",
+                                                    display: 'block',
+                                                    borderBottom: '1px solid #eee'
+                                                }}
+                                            >
+                                                <strong>{asset.symbol}</strong>
+                                                <div style={{ fontSize: "0.8rem", color: "gray" }}>
+                                                    {asset.name}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* rendu conditionnel : pour le menu de suppression d'un favori */}
+                        {showRemove && (
+                            <div className="favorite-remove-overlay"
+                                 style={{
+                                     position: 'fixed',
+                                     top: 0,
+                                     left: 0,
+                                     width: '100%',
+                                     height: '100%',
+                                     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                                     display: 'flex',
+                                     justifyContent: 'center',
+                                     alignItems: 'center',
+                                     zIndex: 1001 // zIndex légèrement supérieur si les deux fenetres sont ouvertes
+                                 }}
+                            >
+                                <div className="favorite-remove"
+                                     style={{
+                                         backgroundColor: 'white',
+                                         padding: '25px',
+                                         borderRadius: '8px',
+                                         width: '350px',
+                                         boxShadow: '0 5px 15px rgba(0, 0, 0, 0.3)',
+                                         onClickCapture: (e) => e.stopPropagation()
+                                     }}
+                                >
+                                    <div
+                                        className="favorite-remove-header"
+                                        style={{
+                                            display: 'flex',
+                                            gap:'12px',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                        }}
+                                    >
+                                        <h4>Supprimer un asset des favoris</h4>
+                                        <button
+                                            onClick={() => {setShowRemove(false)}}
+                                            style={{
+                                                padding: '12px 20px'
+                                            }}>Fermer</button>
+                                    </div>
+                                    <div className="favorite-remove-assets" style={{
+                                        marginBottom: '15px',
+                                        maxHeight: '400px',
+                                        overflowY: 'auto',
+                                        paddingRight: '10px'
+                                    }}>
+                                        {removableAssets.map(asset => (
+                                            <div
+                                                key={asset.symbol}
+                                                onClick={() => handleDeleteFavorite(asset.symbol)}
+                                                style={{
+                                                    padding: "0.5rem 0",
+                                                    cursor: "pointer",
+                                                    display: 'block',
+                                                    borderBottom: '1px solid #eee'
+                                                }}
+                                            >
+                                                <strong>{asset.symbol}</strong>
+                                                <div style={{ fontSize: "0.8rem", color: "gray" }}>
+                                                    {asset.name}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                     <hr/>
 
                     <h3>Tous les assets</h3>
                     <div>
-                        {/*TODO*/}
+                        {/*TODO Liste de tous les assets non présents dans le top 5 et/ou les favoris*/}
                     </div>
                 </div>
             )}

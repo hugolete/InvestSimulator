@@ -331,8 +331,9 @@ def chart(symbol: str, period: str, db: Session = Depends(get_db)):
 
 @app.post("/api/favorites/{user_id}")
 def add_favorite(user_id: int, symbol: str):
-    path = "api/data/favorites"
-    os.makedirs(path, exist_ok=True)
+    folder_path = "api/data/favorites"
+    os.makedirs(folder_path, exist_ok=True)
+    path = f"api/data/favorites/favorites_{user_id}.json"
 
     if os.path.exists(path):
         with open(path, "r") as f:
@@ -355,7 +356,7 @@ def add_favorite(user_id: int, symbol: str):
 
 @app.delete("/api/favorites/{user_id}/{symbol}")
 def remove_favori(user_id: int, symbol: str):
-    path = "api/data/favorites"
+    path = f"api/data/favorites/favorites_{user_id}.json"
 
     if not os.path.exists(path):
         return {"favorites": []}
@@ -377,7 +378,7 @@ def remove_favori(user_id: int, symbol: str):
 
 @app.get("/api/favorites/{user_id}")
 def get_favorites(user_id: int):
-    path = "api/data/favorites"
+    path = f"api/data/favorites/favorites_{user_id}.json"
 
     if not os.path.exists(path):
         return {
