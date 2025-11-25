@@ -10,6 +10,8 @@ from .services.finnhub_ws import run_finnhub_ws, get_stock_prices
 from .services.trade import buy_asset, sell_asset, convert_currencies
 from .services.prices import get_prix, get_price_history
 from fastapi.middleware.cors import CORSMiddleware
+import os
+import json
 
 
 Base.metadata.create_all(bind=engine)
@@ -325,3 +327,63 @@ def chart(symbol: str, period: str, db: Session = Depends(get_db)):
         "data": data,
         "latest_price": latest_price
     }
+
+
+@app.post("/api/favorites/{user_id}")
+def add_favorite(user_id: int, symbol: str):
+    path = "api/data/favorites"
+    os.makedirs(path, exist_ok=True)
+
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            data = json.load(f)
+    else:
+        data = {"user_id": user_id, "favorites": []}
+
+    if symbol not in data["favorites"]:
+        data["favorites"].append(symbol)
+
+    with open(path, "w") as f:
+        json.dump(data, f, indent=4)
+
+    return {
+        "message": "Favori ajoute",
+        "user_id": user_id,
+        "favorites": data["favorites"]
+    }
+
+
+@app.delete("/api/favorites/{user_id}/{symbol}")
+def remove_favori(user_id: int, symbol: str):
+    path = "api/data/favorites"
+
+    if not os.path.exists(path):
+        return {"favorites": []}
+
+    with open(path, "r") as f:
+        data = json.load(f)
+
+    data["favorites"] = [s for s in data["favorites"] if s != symbol]
+
+    with open(path, "w") as f:
+        json.dump(data, f, indent=4)
+
+    return {
+        "message": "Favori supprime",
+        "user_id": user_id,
+        "favorites": data["favorites"]
+    }
+
+
+@app.get("/api/favorites/{user_id}")
+def get_favorites(user_id: int):
+    path = "api/data/favorites"
+
+    if not os.path.exists(path):
+        return {
+            "user_id": user_id,
+            "favorites": []
+        }
+
+    with open(path, "r") as f:
+        return json.load(f)
