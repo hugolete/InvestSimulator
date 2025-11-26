@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, {useCallback, useEffect, useState} from "react";
 import { useNavigate } from "react-router-dom";
 import {getAssets} from "../api/assets";
 import {addFavorite, getFavorites, deleteFavorite} from "../api/favorites";
@@ -13,21 +13,24 @@ export default function Sidebar({isOpen, profileId}) {
 
     // récup liste des assets
     useEffect(() => {
-        getAssets().then(setAllAssets);
+        getAssets().then(assetsData => {
+            const filter = assetsData.filter(a => a.type === "stock" || a.type === "etf" || a.type === "crypto");
+            setAllAssets(filter);
+        });
     }, []);
 
     //récup des favoris de l'user
-    useEffect(() => {
-        fetchFavorites();
-    }, [profileId]);
-
-    const fetchFavorites = () => {
+    const fetchFavorites = useCallback(() => {
         getFavorites(profileId).then(setFavorites)
             .catch(err => {
                 console.error(err);
                 setFavorites([]);
             });
-    }
+    },[profileId]);
+
+    useEffect(() => {
+        fetchFavorites();
+    }, [profileId,fetchFavorites]);
 
     const addableAssets = allAssets.filter(a => !favorites.includes(a.symbol))
     const removableAssets = allAssets.filter(a => favorites.includes(a.symbol))
@@ -67,6 +70,8 @@ export default function Sidebar({isOpen, profileId}) {
     const topAssetsSymbols = ["BTC", "NVDA", "AAPL", "QQQ", "SPY"];
     const topAssets = allAssets.filter(a => topAssetsSymbols.includes(a.symbol));
 
+    const otherAssets = allAssets.filter(a => !topAssetsSymbols.includes(a.symbol) && !favorites.includes(a.symbol));
+
     return(
         <aside
             style={{
@@ -74,7 +79,8 @@ export default function Sidebar({isOpen, profileId}) {
                 borderRight: "1px solid #ccc",
                 padding: "1rem",
                 display: isOpen ? 'block' : 'none',
-                height: "100%"
+                height: "100vh",
+                overflowY: "auto"
             }}
         >
             <input
@@ -335,6 +341,21 @@ export default function Sidebar({isOpen, profileId}) {
                     <h3>Tous les assets</h3>
                     <div>
                         {/*TODO Liste de tous les assets non présents dans le top 5 et/ou les favoris*/}
+                        {otherAssets.map(asset => (
+                            <div
+                                key={asset.symbol}
+                                onClick={() => handleAssetClick(asset.symbol)}
+                                style={{
+                                    padding: "0.5rem 0",
+                                    cursor: "pointer"
+                                }}
+                            >
+                                <strong>{asset.symbol}</strong>
+                                <div style={{ fontSize: "0.8rem", color: "gray" }}>
+                                    {asset.name}
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             )}
