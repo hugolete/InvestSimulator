@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import CreateProfile from "./pages/CreateProfile";
+import AssetPage from "./pages/AssetPage";
 
 function App() {
   const [profileId, setProfileId] = useState(null);
@@ -23,6 +24,12 @@ function App() {
           <Route
               path="/dashboard"
               element={<Dashboard profileId={profileId} />}
+          />
+
+          {/* Page d'asset */}
+          <Route
+              path="/asset/:symbol"
+              element={<AssetPage />}
           />
         </Routes>
       </Router>
