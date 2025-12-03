@@ -104,7 +104,9 @@ function Dashboard({ profileId, onChangeProfile }) {
                     </div>
 
                     {/* titre dynamique */}
-                    <PageTitle/>
+                    <div style={{textAlign:"center"}}>
+                        <h1>Dashboard</h1>
+                    </div>
 
                     {/* bloc de droite */}
                     <div style={{textAlign: "right"}}>

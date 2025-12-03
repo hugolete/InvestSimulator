@@ -45,3 +45,5 @@ export async function fetchAssetData(symbol) {
         throw new Error("Échec du chargement des données de l'actif:" + error.message);
     }
 }
+
+//TODO buy et sell d'un asset
