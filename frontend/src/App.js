@@ -25,12 +25,6 @@ function App() {
               path="/dashboard"
               element={<Dashboard profileId={profileId} />}
           />
-
-          {/* Page d'asset */}
-          <Route
-              path="/asset/:symbol"
-              element={<AssetPage />}
-          />
         </Routes>
       </Router>
   );

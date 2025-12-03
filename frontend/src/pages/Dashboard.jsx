@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
-import {useNavigate} from "react-router-dom";
+import {useLocation, useNavigate} from "react-router-dom";
 import PortfolioHeader from "../components/PortfolioHeader";
 import PageTitle from "../components/PageTitle";
 import Sidebar from "../components/Sidebar";
+import AssetPage from "./AssetPage";
 
 function Dashboard({ profileId, onChangeProfile }) {
     const [profile, setProfile] = useState(null);
@@ -11,8 +12,10 @@ function Dashboard({ profileId, onChangeProfile }) {
     const [isProfileInfoOpen, setIsProfileInfoOpen] = useState(false);
     const [isProfileEditOpen, setIsProfileEditOpen] = useState(false)
     const navigate = useNavigate();
-
     const [newProfileName, setNewProfileName] = useState("");
+
+    const location = useLocation(); //obtenir l'url actuelle
+    const isDashboardRoot = location.pathname === '/dashboard';
 
     const handleNameChangeSubmit = () => {
         const newName = newProfileName
@@ -124,7 +127,16 @@ function Dashboard({ profileId, onChangeProfile }) {
 
                 <section>
                     {/* contenu du dashboard */}
-                    <PortfolioHeader profileId={profileId} />
+                    {isDashboardRoot && (
+                        <section>
+                            <PortfolioHeader profileId={profileId} />
+                        </section>
+                    )}
+                    {!isDashboardRoot && (
+                        <section style={{ padding: '20px' }}>
+                            <AssetPage />
+                        </section>
+                    )}
                 </section>
             </main>
 

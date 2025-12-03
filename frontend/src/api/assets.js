@@ -42,6 +42,6 @@ export async function fetchAssetData(symbol) {
 
     } catch (error) {
         console.error("Erreur lors du chargement des données de la page d'actif:", error);
-        throw new Error("Échec du chargement des données de l'actif.");
+        throw new Error("Échec du chargement des données de l'actif:" + error.message);
     }
 }
