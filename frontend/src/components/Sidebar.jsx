@@ -340,7 +340,6 @@ export default function Sidebar({isOpen, profileId}) {
 
                     <h3>Tous les assets</h3>
                     <div>
-                        {/*TODO Liste de tous les assets non présents dans le top 5 et/ou les favoris*/}
                         {otherAssets.map(asset => (
                             <div
                                 key={asset.symbol}
