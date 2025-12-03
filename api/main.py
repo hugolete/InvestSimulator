@@ -308,8 +308,20 @@ def get_percentage(symbol: str, period: str, db: Session = Depends(get_db)):
     return round(percentage, 2)
 
 
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+@app.get("/api/prices/percentage/{symbol}")
+def get_all_percentage(symbol: str, db: Session = Depends(get_db)):
+    asset = db.query(Asset).filter(Asset.symbol == symbol).first()
+    global_history = get_global_history(symbol,db)
+    now = get_prix(asset.id)
+
+    results = {}
+    for period, price in global_history["history"].items():
+        if period == "now":
+            continue
+        percentage = ((now - price) / price) * 100
+        results[period] = round(percentage, 2)
+
+    return results
 
 
 @app.get("/api/prices/chart/{symbol}/{period}")
@@ -388,3 +400,7 @@ def get_favorites(user_id: int):
 
     with open(path, "r") as f:
         return json.load(f)
+
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
