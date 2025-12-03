@@ -43,7 +43,7 @@ export default function Sidebar({isOpen, profileId}) {
         : [];
 
     function handleAssetClick(symbol) {
-        navigate(`/asset/${symbol}`);
+        navigate(`/dashboard/asset/${symbol}`);
         setSearch("");
     }
 

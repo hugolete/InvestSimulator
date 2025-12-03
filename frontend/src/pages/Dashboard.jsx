@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from "react";
-import {useLocation, useNavigate} from "react-router-dom";
-import PortfolioHeader from "../components/PortfolioHeader";
+import {Outlet, useLocation, useNavigate} from "react-router-dom";
 import PageTitle from "../components/PageTitle";
 import Sidebar from "../components/Sidebar";
-import AssetPage from "./AssetPage";
 
 function Dashboard({ profileId, onChangeProfile }) {
     const [profile, setProfile] = useState(null);
@@ -19,8 +17,6 @@ function Dashboard({ profileId, onChangeProfile }) {
 
     const handleNameChangeSubmit = () => {
         const newName = newProfileName
-        console.log("NameChange Submit")
-        //console.log("Nouveau nom : ",newName)
 
         if (!newName.trim()) {
             alert("Le nom ne peut pas être vide.");
@@ -125,19 +121,7 @@ function Dashboard({ profileId, onChangeProfile }) {
                     </div>
                 </header>
 
-                <section>
-                    {/* contenu du dashboard */}
-                    {isDashboardRoot && (
-                        <section>
-                            <PortfolioHeader profileId={profileId} />
-                        </section>
-                    )}
-                    {!isDashboardRoot && (
-                        <section style={{ padding: '20px' }}>
-                            <AssetPage />
-                        </section>
-                    )}
-                </section>
+                <Outlet />
             </main>
 
             {/* rendu conditionnel : fenêtre info profil */}
