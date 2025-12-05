@@ -124,6 +124,7 @@ export default function Sidebar({isOpen, profileId}) {
             {/* menu normal si searchbar vide */}
             {search.length === 0 && (
                 <div className="normalMenu">
+                    {/* TODO retour au dashboard */}
                     {/* TOP ASSETS */}
                     <h3>Top assets</h3>
                     {topAssets.map(asset => (

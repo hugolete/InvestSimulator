@@ -46,4 +46,24 @@ export async function fetchAssetData(symbol) {
     }
 }
 
-//TODO buy et sell d'un asset
+export async function buyAsset(user_id,symbol,amount_fiat) {
+    const response = await fetch("http://127.0.0.1:8000/api/buy?user_id=" + encodeURIComponent(user_id) + "&symbol=" + encodeURIComponent(symbol) + "&amount_fiat" + encodeURIComponent(amount_fiat), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+    });
+
+    if (!response.ok) throw new Error("Erreur lors de l'achat de l'asset "+symbol);
+
+    return response.json();
+}
+
+export async function sellAsset(user_id,symbol,amount_asset) {
+    const response = await fetch("http://127.0.0.1:8000/api/buy?user_id=" + encodeURIComponent(user_id) + "&symbol=" + encodeURIComponent(symbol) + "&amount_fiat" + encodeURIComponent(amount_fiat), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+    });
+
+    if (!response.ok) throw new Error("Erreur lors de la vente de l'asset "+symbol);
+
+    return response.json();
+}

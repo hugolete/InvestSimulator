@@ -232,7 +232,7 @@ def sell_endpoint(user_id:int, symbol:str, asset_amount:float,currency:str="USD"
 
 
 # convertir entre USD et EUR
-@app.post("/api/convert")
+"""@app.post("/api/convert")
 def convert(user_id:int, amount:float, from_symbol:str,to_symbol:str,db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
 
@@ -257,7 +257,7 @@ def convert(user_id:int, amount:float, from_symbol:str,to_symbol:str,db: Session
         "to_symbol": to_symbol,
         "original_amount": f"{amount}{from_symbol_short}",
         "new_amount": f"{amount_in_new_currency}{to_symbol_short}"
-    }
+    }"""
 
 
 @app.get("/api/prices/history/{symbol}/{period}")

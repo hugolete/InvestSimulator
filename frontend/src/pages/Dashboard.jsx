@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import {Outlet, useLocation, useNavigate} from "react-router-dom";
-import PageTitle from "../components/PageTitle";
 import Sidebar from "../components/Sidebar";
 
 function Dashboard({ profileId, onChangeProfile }) {
@@ -11,9 +10,6 @@ function Dashboard({ profileId, onChangeProfile }) {
     const [isProfileEditOpen, setIsProfileEditOpen] = useState(false)
     const navigate = useNavigate();
     const [newProfileName, setNewProfileName] = useState("");
-
-    const location = useLocation(); //obtenir l'url actuelle
-    const isDashboardRoot = location.pathname === '/dashboard';
 
     const handleNameChangeSubmit = () => {
         const newName = newProfileName

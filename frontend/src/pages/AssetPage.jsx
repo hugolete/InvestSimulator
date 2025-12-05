@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import {fetchAssetData, getAsset} from "../api/assets";
+import {buyAsset, fetchAssetData, getAsset, sellAsset} from "../api/assets";
 
-export default function AssetPage() {
+export default function AssetPage({profileId}) {
     const { symbol } = useParams();
     const [assetDetails, setAssetDetails] = useState(null);
     const [assetPriceHistory, setAssetPriceHistory] = useState(null);
@@ -12,6 +12,9 @@ export default function AssetPage() {
     const [isSellMenuOpen, setIsSellMenuOpen] = useState(false);
     const [yesterdayPct, setYesterdayPct] = useState(null);
     const [yesterdayDiff, setYesterdayDiff] = useState(null);
+    const [orderSymbol, setOrderSymbol] = useState(symbol);
+    const [amountFiat, setAmountFiat] = useState(0);
+    const [quantity, setQuantity] = useState(0);
 
     //récup des données de l'asset
     useEffect(() => {
@@ -73,6 +76,25 @@ export default function AssetPage() {
             console.log("Polling arrêté.");
         };
     }, [symbol]);*/}
+
+    // TODO : mettre à jour l'interface utilisateur (en haut a droite + détails pour la quantité détenue) après l'achat et la vente
+    const handleBuySubmit = () => {
+        console.log("Form d'achat submit")
+        buyAsset(profileId,orderSymbol,amountFiat).then(response => {
+            console.log("Achat réussi :", response);
+        }).catch(error => {
+            console.error("Erreur lors de l'achat :", error);
+        });
+    }
+
+    const handleSellSubmit = () => {
+        console.log("Form de vente submit")
+        sellAsset(profileId,orderSymbol,quantity).then(response => {
+            console.log("Vente réussie :", response);
+        }).catch(error => {
+            console.error("Erreur lors de la vente :", error);
+        });
+    }
 
     return (
         <div
@@ -142,13 +164,20 @@ export default function AssetPage() {
 
                     {/* Boutons */}
                     <div style={{ display: 'flex', gap: '10px' }}>
-                        <button style={{ flex: 1, padding: '10px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                        <button
+                            style={{ flex: 1, padding: '10px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                            onClick={() => setIsBuyMenuOpen(!isBuyMenuOpen)}
+                        >
                             Acheter
                         </button>
-                        <button style={{ flex: 1, padding: '10px', backgroundColor: '#F44336', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                        <button
+                            style={{ flex: 1, padding: '10px', backgroundColor: '#F44336', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                            onClick={() => setIsSellMenuOpen(!isSellMenuOpen)}
+                        >
                             Vendre
                         </button>
                     </div>
+
                     {/* TODO rendu conditionnel pour chaque ordre */}
                 </div>
 
