@@ -57,8 +57,12 @@ export async function buyAsset(user_id,symbol,amount_fiat) {
     return response.json();
 }
 
-export async function sellAsset(user_id,symbol,amount_asset) {
-    const response = await fetch("http://127.0.0.1:8000/api/sell?user_id=" + encodeURIComponent(user_id) + "&symbol=" + encodeURIComponent(symbol) + "&amount_asset=" + encodeURIComponent(amount_asset), {
+export async function sellAsset(user_id,symbol,asset_amount) {
+    if (!asset_amount || asset_amount <= 0) {
+        throw new Error("La quantité de l'actif à vendre doit être supérieure à zéro.");
+    }
+
+    const response = await fetch("http://127.0.0.1:8000/api/sell?user_id=" + encodeURIComponent(user_id) + "&symbol=" + encodeURIComponent(symbol) + "&asset_amount=" + encodeURIComponent(asset_amount), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
     });

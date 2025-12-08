@@ -17,6 +17,7 @@ export default function AssetPage({profileId}) {
     const [quantity, setQuantity] = useState(0);
     const [isAmountFiatInvalid, setIsAmountFiatInvalid] = useState(false);
     const [isAmountAssetInvalid, setIsAmountAssetInvalid] = useState(false);
+    const [amountAsset, setAmountAsset] = useState(0);
 
     //récup des données de l'asset
     useEffect(() => {
@@ -59,11 +60,22 @@ export default function AssetPage({profileId}) {
         return <p>Chargement des données de {symbol}...</p>;
     }
 
-    console.log("Profile dans AssetPage :",profileData)
+    //console.log("Profile dans AssetPage :",profileData)
+
+    //récup usd de l'user
     const usdAsset = profileData.find(item => item.symbol === "USD")
     //console.log("UsdAsset : ",usdAsset)
     const usdQuantity = usdAsset.quantity
     //console.log("UsdQuantity : ",usdQuantity)
+
+    //récup asset de l'user
+    const asset = profileData.find(item => item.symbol === symbol)
+    console.log("Asset de l'user : ",asset, " pour le symbole : ",symbol)
+    let assetQuantity = 0
+    if (asset && asset.quantity) {
+        assetQuantity = asset.quantity;
+    }
+    console.log("Asset quantity : ",assetQuantity)
 
     //TODO refresh des prix régulier
     {/*useEffect(() => {
@@ -92,7 +104,7 @@ export default function AssetPage({profileId}) {
         };
     }, [symbol]);*/}
 
-    // TODO : mettre à jour l'interface utilisateur (en haut a droite + détails pour la quantité détenue) après l'achat et la vente
+    // TODO : mettre à jour toutes les valeurs après l'achat et la vente (actuellement il faut revenir a l'accueil pour refresh)
 
     const handleBuySubmit = (e) => {
         e.preventDefault()
@@ -128,10 +140,36 @@ export default function AssetPage({profileId}) {
         });
     }
 
-    const handleSellSubmit = () => {
+    const handleSellSubmit = (e) => {
+        e.preventDefault()
         console.log("Form de vente submit")
-        sellAsset(profileId,orderSymbol,quantity).then(response => {
+
+        const amount = parseFloat(amountAsset)
+        console.log("Amount asset:", amountAsset, " parsed: ",amount)
+
+        if (isNaN(amount) || amount <= 0) {
+            alert("Veuillez entrer un montant de vente valide (supérieur à 0).");
+            console.error("Tentative de vente avec un montant invalide");
+            return;
+        }
+
+        const preciseAssetQuantity = parseFloat(assetQuantity.toFixed(8));
+        if (amount > preciseAssetQuantity) {
+            alert("Transaction annulée : Fonds insuffisants. Vous avez seulement "+symbol+" "+ assetQuantity.toFixed(5) + " disponible pour la vente.");
+            console.error("Tentative de vente excédentaire:", amount, " vs ", preciseAssetQuantity);
+            return;
+        }
+
+        sellAsset(profileId,orderSymbol,amountAsset).then(response => {
             console.log("Vente réussie :", response);
+
+            const soldQuantity = response.amount;
+            const symbol = response.symbol || orderSymbol;
+            const formattedQuantity = soldQuantity.toFixed(5);
+            const usdReceived_string = response.total_price;
+            const usdReceived = parseFloat(usdReceived_string).toFixed(2);
+
+            alert(`Vente réussie ! Vous avez vendu ${formattedQuantity} ${symbol} pour $${usdReceived}.`);
         }).catch(error => {
             console.error("Erreur lors de la vente :", error);
         });
@@ -139,11 +177,20 @@ export default function AssetPage({profileId}) {
 
     const handleSetMax = () => {
         // arrondir usdquantity
-        const maxAmount = usdQuantity.toFixed(8);
+        const factor = Math.pow(10, 8);
+        const maxAmount = Math.floor(usdQuantity * factor) / factor;
 
         setAmountFiat(maxAmount);
         setIsAmountFiatInvalid(false);
     };
+
+    const handleSetMaxAsset = () => {
+        const factor = Math.pow(10, 8);
+        const maxAssetAmount = Math.floor(assetQuantity * factor) / factor;
+
+        setAmountAsset(maxAssetAmount);
+        setIsAmountAssetInvalid(false);
+    }
 
     return (
         <div
@@ -318,6 +365,107 @@ export default function AssetPage({profileId}) {
                                         <button
                                             type="button"
                                             onClick={() => setIsBuyMenuOpen(false)}
+                                            style={{
+                                                flex: '1',
+                                                padding: '12px 20px',
+                                            }}>
+                                            Fermer
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+                    {isSellMenuOpen && (
+                        <div className="sell-menu-overlay"
+                             style={{
+                                 position: 'fixed',
+                                 top: 0,
+                                 left: 0,
+                                 width: '100%',
+                                 height: '100%',
+                                 backgroundColor: 'rgba(0, 0, 0, 0.5)', // fond semi-transparent
+                                 display: 'flex',
+                                 justifyContent: 'center',
+                                 alignItems: 'center',
+                                 zIndex: 1000
+                             }}
+                        >
+                            <div className="sell-info"
+                                 style={{
+                                     backgroundColor: 'white',
+                                     padding: '25px',
+                                     borderRadius: '8px',
+                                     width: '350px',
+                                     boxShadow: '0 5px 15px rgba(0, 0, 0, 0.3)',
+                                     textAlign: 'center',
+                                 }}
+                            >
+                                <h2>Ordre de vente</h2>
+
+                                <form onSubmit={handleSellSubmit}>
+                                    <div style={{ marginBottom: '15px', textAlign: 'left' }}>
+                                        <label htmlFor="sell-symbol" style={{ display: 'block', marginBottom: '5px' }}><h4>Actif: <strong>{orderSymbol}</strong></h4></label>
+                                    </div>
+                                    <div>
+                                        <label htmlFor="amount-asset" style={{ display: 'block', marginBottom: '5px', textAlign:'left' }}>Nombre de l'asset à vendre ({orderSymbol}):</label>
+                                        <div style={{ marginBottom: '15px', textAlign: 'left', display:'flex', alignItems:'stretch' }}>
+                                            <input
+                                                type="number"
+                                                id="amount-asset"
+                                                value={amountAsset}
+                                                onChange={(e) => {
+                                                    const newValue = e.target.value;
+                                                    const newNumericValue = parseFloat(newValue);
+
+                                                    setAmountAsset(newValue);
+
+                                                    const preciseAssetQuantity = parseFloat(usdQuantity.toFixed(8));
+
+                                                    if (Number.isFinite(newNumericValue) && newNumericValue > 0 && newNumericValue > preciseAssetQuantity) {
+                                                        setIsAmountFiatInvalid(true);
+                                                    } else {
+                                                        setIsAmountFiatInvalid(false);
+                                                    }
+                                                }}
+                                                max={usdQuantity}
+                                                style={{ width: '100%', padding: '8px', boxSizing: 'border-box', border: isAmountFiatInvalid ? '2px solid red' : '1px solid #ccc', flexGrow: 1 }}
+                                            />
+
+                                            <button
+                                                type="button"
+                                                onClick={handleSetMaxAsset}
+                                                style={{
+                                                    padding: '8px 12px',
+                                                    cursor: 'pointer',
+                                                    height: 'auto',
+                                                    whiteSpace: 'nowrap'
+                                                }}
+                                            >
+                                                Max
+                                            </button>
+
+                                            {/* message d'erreur */}
+                                            {isAmountAssetInvalid && (
+                                                <p style={{ color: 'red', fontSize: '0.9rem', marginTop: '5px' }}>
+                                                    Montant maximal dépassé. Assets disponible : ${assetQuantity.toFixed(5)}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="sell-menu-buttons" style={{display: 'flex', justifyContent: 'center', marginTop: '25px', gap:'12px'}}>
+                                        <button
+                                            type="submit"
+                                            style={{
+                                                flex: '1',
+                                                padding: '12px 20px',
+                                            }}
+                                        >
+                                            Vendre
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsSellMenuOpen(false)}
                                             style={{
                                                 flex: '1',
                                                 padding: '12px 20px',
