@@ -104,8 +104,6 @@ export default function AssetPage({profileId}) {
         };
     }, [symbol]);*/}
 
-    // TODO : mettre à jour toutes les valeurs après l'achat et la vente (actuellement il faut revenir a l'accueil pour refresh)
-
     const handleBuySubmit = (e) => {
         e.preventDefault()
         console.log("Form d'achat submit")
@@ -282,7 +280,6 @@ export default function AssetPage({profileId}) {
                         </button>
                     </div>
 
-                    {/* TODO rendu conditionnel pour chaque ordre */}
                     {isBuyMenuOpen && (
                         <div className="buy-menu-overlay"
                              style={{
@@ -488,6 +485,7 @@ export default function AssetPage({profileId}) {
                 </div>
 
                 {/* Infos sur l'actif */}
+                {/* TODO afficher le nombre d'asset possédé par l'user + la valeur en USD*/}
                 <div
                     className="asset-details"
                     style={{
