@@ -48,7 +48,7 @@ export default function AssetPage({profileId}) {
     }, [symbol]);
 
     //récup données profil
-    const { profileData } = useOutletContext();
+    const { profileData, refreshProfile } = useOutletContext();
 
     if (!profileData) {
         return <div>Chargement des détails du profil...</div>;
@@ -134,6 +134,10 @@ export default function AssetPage({profileId}) {
             const formattedQuantity = boughtQuantity.toFixed(5);
 
             alert(`Achat réussi ! Vous avez acheté ${formattedQuantity} ${symbol} pour $${amount.toFixed(2)}.`);
+
+            if (refreshProfile) {
+                refreshProfile();
+            }
         }).catch(error => {
             console.error("Erreur lors de l'achat :", error);
             alert(`Échec de la transaction: ${error.message}`);alert(`Échec de la transaction: ${error.message}`);
@@ -170,6 +174,10 @@ export default function AssetPage({profileId}) {
             const usdReceived = parseFloat(usdReceived_string).toFixed(2);
 
             alert(`Vente réussie ! Vous avez vendu ${formattedQuantity} ${symbol} pour $${usdReceived}.`);
+
+            if (refreshProfile) {
+                refreshProfile();
+            }
         }).catch(error => {
             console.error("Erreur lors de la vente :", error);
         });

@@ -36,22 +36,43 @@ function Dashboard({ profileId, onChangeProfile }) {
     };
 
     // Récupérer les infos du profil (total_worth, USD quantity, etc)
-    useEffect(() => {
+    const fetchProfileData = async (profileId) => {
+        if (!profileId) return;
+
         setIsLoading(true);
         setProfile(null);
 
-        fetch(`http://127.0.0.1:8000/api/profiles/${profileId}`)
-            .then(res => res.json())
-            .then(data => {
+        try {
+            const response = await fetch(`http://127.0.0.1:8000/api/profiles/${profileId}`);
+
+            if (!response.ok) {
+                throw new Error(`Erreur HTTP: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (Array.isArray(data)) {
                 setProfile(data);
-            })
-            .catch(error => {
-                console.error("Erreur lors du chargement du profil:", error);
+            } else {
+                console.error("Données de profil invalides:", data);
                 setProfile(null);
-            })
-            .finally(() => {
-                setIsLoading(false); // mettre fin au chargement
-            });
+            }
+        } catch (error) {
+            console.error("Erreur lors du chargement du profil:", error);
+            setProfile(null);
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    const refreshProfile = () => {
+        // appelle la fonction de fetch avec l'ID du profil actuel
+        fetchProfileData(profileId);
+    };
+
+    useEffect(() => {
+        // appelle la fonction pour le chargement initial
+        fetchProfileData(profileId);
     }, [profileId]);
 
     if (isLoading) {
@@ -119,7 +140,7 @@ function Dashboard({ profileId, onChangeProfile }) {
                     </div>
                 </header>
 
-                <Outlet context={{profileData: profile}} />
+                <Outlet context={{profileData: profile, refreshProfile: refreshProfile}} />
             </main>
 
             {/* rendu conditionnel : fenêtre info profil */}
