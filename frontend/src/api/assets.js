@@ -47,7 +47,7 @@ export async function fetchAssetData(symbol) {
 }
 
 export async function buyAsset(user_id,symbol,amount_fiat) {
-    const response = await fetch("http://127.0.0.1:8000/api/buy?user_id=" + encodeURIComponent(user_id) + "&symbol=" + encodeURIComponent(symbol) + "&amount_fiat" + encodeURIComponent(amount_fiat), {
+    const response = await fetch("http://127.0.0.1:8000/api/buy?user_id=" + encodeURIComponent(user_id) + "&symbol=" + encodeURIComponent(symbol) + "&amount_fiat=" + encodeURIComponent(amount_fiat), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
     });
@@ -58,7 +58,7 @@ export async function buyAsset(user_id,symbol,amount_fiat) {
 }
 
 export async function sellAsset(user_id,symbol,amount_asset) {
-    const response = await fetch("http://127.0.0.1:8000/api/buy?user_id=" + encodeURIComponent(user_id) + "&symbol=" + encodeURIComponent(symbol) + "&amount_fiat" + encodeURIComponent(amount_fiat), {
+    const response = await fetch("http://127.0.0.1:8000/api/sell?user_id=" + encodeURIComponent(user_id) + "&symbol=" + encodeURIComponent(symbol) + "&amount_asset=" + encodeURIComponent(amount_asset), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
     });

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import {Outlet, useLocation, useNavigate} from "react-router-dom";
+import {Outlet, useNavigate} from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 
 function Dashboard({ profileId, onChangeProfile }) {
@@ -119,7 +119,7 @@ function Dashboard({ profileId, onChangeProfile }) {
                     </div>
                 </header>
 
-                <Outlet />
+                <Outlet context={{profileData: profile}} />
             </main>
 
             {/* rendu conditionnel : fenêtre info profil */}

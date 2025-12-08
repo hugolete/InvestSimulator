@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import {buyAsset, fetchAssetData, getAsset, sellAsset} from "../api/assets";
+import { useParams, useOutletContext } from 'react-router-dom';
+import {buyAsset, fetchAssetData, sellAsset} from "../api/assets";
 
 export default function AssetPage({profileId}) {
     const { symbol } = useParams();
@@ -15,6 +15,8 @@ export default function AssetPage({profileId}) {
     const [orderSymbol, setOrderSymbol] = useState(symbol);
     const [amountFiat, setAmountFiat] = useState(0);
     const [quantity, setQuantity] = useState(0);
+    const [isAmountFiatInvalid, setIsAmountFiatInvalid] = useState(false);
+    const [isAmountAssetInvalid, setIsAmountAssetInvalid] = useState(false);
 
     //récup des données de l'asset
     useEffect(() => {
@@ -44,13 +46,26 @@ export default function AssetPage({profileId}) {
         }
     }, [symbol]);
 
-    console.log("Yesterday pct : ",yesterdayPct);
+    //récup données profil
+    const { profileData } = useOutletContext();
+
+    if (!profileData) {
+        return <div>Chargement des détails du profil...</div>;
+    }
+
+    //console.log("Yesterday pct : ",yesterdayPct);
 
     if (!assetDetails && symbol) {
         return <p>Chargement des données de {symbol}...</p>;
     }
 
-    //TODO refresh des prix
+    console.log("Profile dans AssetPage :",profileData)
+    const usdAsset = profileData.find(item => item.symbol === "USD")
+    //console.log("UsdAsset : ",usdAsset)
+    const usdQuantity = usdAsset.quantity
+    //console.log("UsdQuantity : ",usdQuantity)
+
+    //TODO refresh des prix régulier
     {/*useEffect(() => {
         if (!symbol) return;
 
@@ -78,12 +93,38 @@ export default function AssetPage({profileId}) {
     }, [symbol]);*/}
 
     // TODO : mettre à jour l'interface utilisateur (en haut a droite + détails pour la quantité détenue) après l'achat et la vente
-    const handleBuySubmit = () => {
+
+    const handleBuySubmit = (e) => {
+        e.preventDefault()
         console.log("Form d'achat submit")
+
+        const amount = parseFloat(amountFiat);
+        console.log("Amount fiat:", amountFiat, " parsed: ",amount)
+
+        if (isNaN(amount) || amount <= 0) {
+            alert("Veuillez entrer un montant d'achat valide (supérieur à 0).");
+            console.error("Tentative d'achat avec un montant invalide");
+            return;
+        }
+
+        const preciseUsdQuantity = parseFloat(usdQuantity.toFixed(8));
+        if (amount > preciseUsdQuantity) {
+            alert("Transaction annulée : Fonds insuffisants. Vous avez seulement $" + usdQuantity.toFixed(2) + " disponibles.");
+            console.error("Tentative d'achat excédentaire:", amount, " vs ", preciseUsdQuantity);
+            return;
+        }
+
         buyAsset(profileId,orderSymbol,amountFiat).then(response => {
             console.log("Achat réussi :", response);
+
+            const boughtQuantity = response.amount;
+            const symbol = response.symbol || orderSymbol;
+            const formattedQuantity = boughtQuantity.toFixed(5);
+
+            alert(`Achat réussi ! Vous avez acheté ${formattedQuantity} ${symbol} pour $${amount.toFixed(2)}.`);
         }).catch(error => {
             console.error("Erreur lors de l'achat :", error);
+            alert(`Échec de la transaction: ${error.message}`);alert(`Échec de la transaction: ${error.message}`);
         });
     }
 
@@ -95,6 +136,14 @@ export default function AssetPage({profileId}) {
             console.error("Erreur lors de la vente :", error);
         });
     }
+
+    const handleSetMax = () => {
+        // arrondir usdquantity
+        const maxAmount = usdQuantity.toFixed(8);
+
+        setAmountFiat(maxAmount);
+        setIsAmountFiatInvalid(false);
+    };
 
     return (
         <div
@@ -166,19 +215,120 @@ export default function AssetPage({profileId}) {
                     <div style={{ display: 'flex', gap: '10px' }}>
                         <button
                             style={{ flex: 1, padding: '10px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                            onClick={() => setIsBuyMenuOpen(!isBuyMenuOpen)}
+                            onClick={() => setIsBuyMenuOpen(true)}
                         >
                             Acheter
                         </button>
                         <button
                             style={{ flex: 1, padding: '10px', backgroundColor: '#F44336', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                            onClick={() => setIsSellMenuOpen(!isSellMenuOpen)}
+                            onClick={() => setIsSellMenuOpen(true)}
                         >
                             Vendre
                         </button>
                     </div>
 
                     {/* TODO rendu conditionnel pour chaque ordre */}
+                    {isBuyMenuOpen && (
+                        <div className="buy-menu-overlay"
+                             style={{
+                                 position: 'fixed',
+                                 top: 0,
+                                 left: 0,
+                                 width: '100%',
+                                 height: '100%',
+                                 backgroundColor: 'rgba(0, 0, 0, 0.5)', // fond semi-transparent
+                                 display: 'flex',
+                                 justifyContent: 'center',
+                                 alignItems: 'center',
+                                 zIndex: 1000
+                             }}
+                        >
+                            <div className="buy-info"
+                                 style={{
+                                     backgroundColor: 'white',
+                                     padding: '25px',
+                                     borderRadius: '8px',
+                                     width: '350px',
+                                     boxShadow: '0 5px 15px rgba(0, 0, 0, 0.3)',
+                                     textAlign: 'center',
+                                 }}
+                            >
+                                <h2>Ordre d'achat</h2>
+
+                                <form onSubmit={handleBuySubmit}>
+                                    <div style={{ marginBottom: '15px', textAlign: 'left' }}>
+                                        <label htmlFor="buy-symbol" style={{ display: 'block', marginBottom: '5px' }}><h4>Actif: <strong>{orderSymbol}</strong></h4></label>
+                                    </div>
+                                    <div>
+                                        <label htmlFor="amount-fiat" style={{ display: 'block', marginBottom: '5px', textAlign:'left' }}>Montant en monnaie ($USD):</label>
+                                        <div style={{ marginBottom: '15px', textAlign: 'left', display:'flex', alignItems:'stretch' }}>
+                                            <input
+                                                type="number"
+                                                id="amount-fiat"
+                                                value={amountFiat}
+                                                onChange={(e) => {
+                                                    const newValue = e.target.value;
+                                                    const newNumericValue = parseFloat(newValue);
+
+                                                    setAmountFiat(newValue);
+
+                                                    const preciseUsdQuantity = parseFloat(usdQuantity.toFixed(8));
+
+                                                    if (Number.isFinite(newNumericValue) && newNumericValue > 0 && newNumericValue > preciseUsdQuantity) {
+                                                        setIsAmountFiatInvalid(true);
+                                                    } else {
+                                                        setIsAmountFiatInvalid(false);
+                                                    }
+                                                }}
+                                                max={usdQuantity}
+                                                style={{ width: '100%', padding: '8px', boxSizing: 'border-box', border: isAmountFiatInvalid ? '2px solid red' : '1px solid #ccc', flexGrow: 1 }}
+                                            />
+
+                                            <button
+                                                type="button"
+                                                onClick={handleSetMax}
+                                                style={{
+                                                    padding: '8px 12px',
+                                                    cursor: 'pointer',
+                                                    height: 'auto',
+                                                    whiteSpace: 'nowrap'
+                                                }}
+                                            >
+                                                Max
+                                            </button>
+
+                                            {/* message d'erreur */}
+                                            {isAmountFiatInvalid && (
+                                                <p style={{ color: 'red', fontSize: '0.9rem', marginTop: '5px' }}>
+                                                    Montant maximal dépassé. Solde disponible : ${usdQuantity.toFixed(2)}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="buy-menu-buttons" style={{display: 'flex', justifyContent: 'center', marginTop: '25px', gap:'12px'}}>
+                                        <button
+                                            type="submit"
+                                            style={{
+                                                flex: '1',
+                                                padding: '12px 20px',
+                                            }}
+                                        >
+                                            Acheter
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsBuyMenuOpen(false)}
+                                            style={{
+                                                flex: '1',
+                                                padding: '12px 20px',
+                                            }}>
+                                            Fermer
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Infos sur l'actif */}
