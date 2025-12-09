@@ -14,7 +14,6 @@ export default function AssetPage({profileId}) {
     const [yesterdayDiff, setYesterdayDiff] = useState(null);
     const [orderSymbol, setOrderSymbol] = useState(symbol);
     const [amountFiat, setAmountFiat] = useState(0);
-    const [quantity, setQuantity] = useState(0);
     const [isAmountFiatInvalid, setIsAmountFiatInvalid] = useState(false);
     const [isAmountAssetInvalid, setIsAmountAssetInvalid] = useState(false);
     const [amountAsset, setAmountAsset] = useState(0);
@@ -71,9 +70,11 @@ export default function AssetPage({profileId}) {
     //récup asset de l'user
     const asset = profileData.find(item => item.symbol === symbol)
     console.log("Asset de l'user : ",asset, " pour le symbole : ",symbol)
-    let assetQuantity = 0
+    let assetQuantity = 0;
+    let usdWorth = 0;
     if (asset && asset.quantity) {
         assetQuantity = asset.quantity;
+        usdWorth = (assetQuantity * assetDetails.price).toFixed(2);
     }
     console.log("Asset quantity : ",assetQuantity)
 
@@ -485,7 +486,6 @@ export default function AssetPage({profileId}) {
                 </div>
 
                 {/* Infos sur l'actif */}
-                {/* TODO afficher le nombre d'asset possédé par l'user + la valeur en USD*/}
                 <div
                     className="asset-details"
                     style={{
@@ -499,6 +499,19 @@ export default function AssetPage({profileId}) {
                     <p><strong>Symbole:</strong> {assetDetails.symbol}</p>
                     <p><strong>Nom:</strong> {assetDetails.name}</p>
                     <p><strong>Type:</strong> {assetDetails.type}</p>
+                </div>
+                <div
+                    className="asset-user-details"
+                    style={{
+                        backgroundColor: '#fff',
+                        padding: '20px',
+                        borderRadius: '8px',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    }}
+                >
+                    <h3>Vous possédez:</h3>
+                    <p><strong>{assetQuantity} {assetDetails.symbol}</strong></p>
+                    <p><strong>Valeur : {usdWorth} $</strong></p>
                 </div>
             </div>
         </div>
