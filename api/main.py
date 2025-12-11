@@ -104,7 +104,7 @@ def get_assets(db: Session = Depends(get_db)):
 
 
 # récup de tous les prix
-@app.get("/api/prices")
+@app.get("/api/allprices")
 def get_all_asset_prices(db: Session = Depends(get_db)):
     assets = db.query(Asset).all()
     result = {}
