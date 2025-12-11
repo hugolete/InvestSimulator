@@ -103,6 +103,29 @@ def get_assets(db: Session = Depends(get_db)):
     return result
 
 
+# récup de tous les prix
+@app.get("/api/prices")
+def get_all_asset_prices(db: Session = Depends(get_db)):
+    assets = db.query(Asset).all()
+    result = {}
+
+    stock_symbols = [a.symbol for a in assets if a.type in ["stock", "etf"]]
+    stock_prices = get_stock_prices(stock_symbols)
+
+    for a in assets:
+        if a.type == "crypto":
+            price = get_prix(a.id)
+        elif a.type in ["stock", "etf"]:
+            price = stock_prices.get(a.symbol, 0.0)
+        else:
+            price = 0.0
+
+        result[a.symbol] = price
+        print(result)
+
+    return result
+
+
 # récup profil (nom + valeur totale + détails du portfolio)
 @app.get("/api/profiles/{user_id}")
 def portfolio(user_id: int, db: Session = Depends(get_db)):
