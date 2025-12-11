@@ -77,6 +77,21 @@ function Dashboard({ profileId, onChangeProfile }) {
         fetchProfileData(profileId);
     }, [profileId]);
 
+    // récup de tous les prix pour refresh
+    useEffect(() => {
+        const fetchAllPrices = () => {
+            getAllPrices().then(pricesData => {
+                setAllPrices(pricesData);
+            })
+        }
+
+        fetchAllPrices();
+
+        const intervalId = setInterval(fetchAllPrices, 15000);
+
+        return () => clearInterval(intervalId);
+    },[]);
+
     if (isLoading) {
         return <div style={{textAlign: "center", padding: "50px"}}>Chargement des données du profil...</div>;
     }
@@ -99,25 +114,10 @@ function Dashboard({ profileId, onChangeProfile }) {
     const profileNameObject = profile.find(item => 'profileName' in item);
     const profileName = profileNameObject.profileName
 
-    // récup de tous les prix pour refresh
-    useEffect(() => {
-        const fetchAllPrices = () => {
-            getAllPrices().then(pricesData => {
-                setAllPrices(pricesData);
-            })
-        }
-
-        fetchAllPrices();
-
-        const intervalId = setInterval(fetchAllPrices, 10000);
-
-        return () => clearInterval(intervalId);
-    },[]);
-
     return (
         <div className="dashboard-container" style={{display: "flex", height: "100vh"}}>
             {/* sidebar gauche*/}
-            <Sidebar isOpen={isSidebarOpen} profileId={profileId} />
+            <Sidebar isOpen={isSidebarOpen} profileId={profileId} allPrices={allPrices} />
 
             {/* main content */}
             <main style={{flexGrow: 1, padding: "1rem"}}>
@@ -155,7 +155,7 @@ function Dashboard({ profileId, onChangeProfile }) {
                     </div>
                 </header>
 
-                <Outlet context={{profileData: profile, refreshProfile: refreshProfile}} />
+                <Outlet context={{profileData: profile, refreshProfile: refreshProfile, allPrices: allPrices}} />
             </main>
 
             {/* rendu conditionnel : fenêtre info profil */}

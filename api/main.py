@@ -121,7 +121,6 @@ def get_all_asset_prices(db: Session = Depends(get_db)):
             price = 0.0
 
         result[a.symbol] = price
-        print(result)
 
     return result
 

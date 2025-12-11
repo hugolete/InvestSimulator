@@ -34,20 +34,33 @@ export default function AssetPage({profileId}) {
                     price: price,
                 }));
                 setChartData(formattedChartData);
-
                 //récup prix d'hier et pourcentage
                 const yesterdayPrice = historyObject["1d"]
-                const yesterdayDiff = (assetData.asset.price - yesterdayPrice).toFixed(2);
-                console.log("yesterday diff: ",yesterdayDiff);
+                const yesterdayDiff = (allPrices[symbol] - yesterdayPrice).toFixed(2);
+                //console.log("yesterday diff: ",yesterdayDiff);
                 setYesterdayDiff(yesterdayDiff);
-
                 setYesterdayPct(assetData.percentages["1d"]);
             })
         }
     }, [symbol]);
 
+    const yesterdayPrice = assetPriceHistory?.history?.["1d"] || 0;
+    const baseYesterdayPct = assetPercentages?.["1d"] || 0;
+
+    //refresh des pourcentages avec les prix en temps réel
+    useEffect(() => {
+        if (allPrices && symbol && yesterdayPrice !== 0){
+            if (allPrices[symbol] !== undefined){
+                const diff = (allPrices[symbol] - yesterdayPrice).toFixed(2);
+                setYesterdayDiff(diff);
+                const pct = ((diff / yesterdayPrice) * 100).toFixed(2);
+                setYesterdayPct(pct);
+            }
+        }
+    })
+
     //récup données profil
-    const { profileData, refreshProfile } = useOutletContext();
+    const { profileData, refreshProfile, allPrices } = useOutletContext();
 
     if (!profileData) {
         return <div>Chargement des détails du profil...</div>;
@@ -65,41 +78,13 @@ export default function AssetPage({profileId}) {
 
     //récup asset de l'user
     const asset = profileData.find(item => item.symbol === symbol)
-    console.log("Asset de l'user : ",asset, " pour le symbole : ",symbol)
+    //console.log("Asset de l'user : ",asset, " pour le symbole : ",symbol)
     let assetQuantity = 0;
     let usdWorth = 0;
     if (asset && asset.quantity) {
         assetQuantity = asset.quantity;
         usdWorth = (assetQuantity * assetDetails.price).toFixed(2);
     }
-    console.log("Asset quantity : ",assetQuantity)
-
-    //TODO refresh des prix régulier
-    {/*useEffect(() => {
-        if (!symbol) return;
-
-        const fetchCurrentPrice = () => {
-            getAsset(symbol)
-                .then(data => {
-                    setAssetDetails(prevDetails => ({
-                        ...prevDetails, // garde les autres détails (nom, type, description)
-                        price: data.price
-                    }));
-                })
-                .catch(error => {
-                    console.error("Erreur de rafraîchissement du prix:", error);
-                });
-        };
-
-        // Démarre l'interrogation (polling), intervalle 10s
-        const intervalId = setInterval(fetchCurrentPrice, 10000);
-
-        // nettoyage : s'exécute lorsque le composant est démonté ou lorsque les dépendances ([symbol]) changent.
-        return () => {
-            clearInterval(intervalId); // Arrête le polling
-            console.log("Polling arrêté.");
-        };
-    }, [symbol]);*/}
 
     const handleBuySubmit = (e) => {
         e.preventDefault()
@@ -246,7 +231,7 @@ export default function AssetPage({profileId}) {
                 >
                     <h3>Trading</h3>
                     <p style={{ fontWeight: 'bold', fontSize: '1.5rem', marginBottom: '15px' }}>
-                        Prix Actuel : ${assetDetails.price || 'N/A'}
+                        Prix Actuel : ${allPrices[symbol] || 'N/A'}
                     </p>
 
                     {/* pourcentage par rapport au jour précédent */}

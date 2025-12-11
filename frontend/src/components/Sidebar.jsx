@@ -1,15 +1,15 @@
 import React, {useCallback, useEffect, useState} from "react";
-import { useNavigate } from "react-router-dom";
+import {useNavigate, useOutletContext} from "react-router-dom";
 import {getAssets} from "../api/assets";
 import {addFavorite, getFavorites, deleteFavorite} from "../api/favorites";
 
-export default function Sidebar({isOpen, profileId}) {
+export default function Sidebar({isOpen, profileId, allPrices}) {
     const navigate = useNavigate();
     const [allAssets, setAllAssets] = useState([]);
     const [search, setSearch] = useState("");
-    const [favorites, setFavorites] = useState([])
-    const [showAdd, setShowAdd] = useState(false)
-    const [showRemove, setShowRemove] = useState(false)
+    const [favorites, setFavorites] = useState([]);
+    const [showAdd, setShowAdd] = useState(false);
+    const [showRemove, setShowRemove] = useState(false);
 
     // récup liste des assets
     useEffect(() => {
@@ -142,6 +142,9 @@ export default function Sidebar({isOpen, profileId}) {
                             <strong>{asset.symbol}</strong>
                             <div style={{ fontSize: "0.8rem", color: "gray" }}>
                                 {asset.name}
+                            </div>
+                            <div style={{ fontSize: "0.8rem", color: "gray" }}>
+                                {allPrices[asset.symbol]} $
                             </div>
                         </div>
                     ))}
