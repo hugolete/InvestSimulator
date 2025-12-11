@@ -53,13 +53,9 @@ export default function AssetPage({profileId}) {
         return <div>Chargement des détails du profil...</div>;
     }
 
-    //console.log("Yesterday pct : ",yesterdayPct);
-
     if (!assetDetails && symbol) {
         return <p>Chargement des données de {symbol}...</p>;
     }
-
-    //console.log("Profile dans AssetPage :",profileData)
 
     //récup usd de l'user
     const usdAsset = profileData.find(item => item.symbol === "USD")

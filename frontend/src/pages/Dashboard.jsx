@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {Outlet, useNavigate} from "react-router-dom";
 import Sidebar from "../components/Sidebar";
+import {getAllPrices} from "../api/assets";
 
 function Dashboard({ profileId, onChangeProfile }) {
     const [profile, setProfile] = useState(null);
@@ -10,6 +11,7 @@ function Dashboard({ profileId, onChangeProfile }) {
     const [isProfileEditOpen, setIsProfileEditOpen] = useState(false)
     const navigate = useNavigate();
     const [newProfileName, setNewProfileName] = useState("");
+    const [allPrices,setAllPrices] = useState({});
 
     const handleNameChangeSubmit = () => {
         const newName = newProfileName
@@ -87,7 +89,6 @@ function Dashboard({ profileId, onChangeProfile }) {
     //console.log("UsdAsset : ",usdAsset)
     const usdQuantity = usdAsset.quantity
     //console.log("UsdQuantity : ",usdQuantity)
-    //console.log("Profile : ",profile)
 
     // valeur totale du compte
     const totalWorthObject = profile.find(item => 'total_worth' in item);
@@ -97,7 +98,21 @@ function Dashboard({ profileId, onChangeProfile }) {
     //nom du compte
     const profileNameObject = profile.find(item => 'profileName' in item);
     const profileName = profileNameObject.profileName
-    //console.log("profileName : ",profileName)
+
+    // récup de tous les prix pour refresh
+    useEffect(() => {
+        const fetchAllPrices = () => {
+            getAllPrices().then(pricesData => {
+                setAllPrices(pricesData);
+            })
+        }
+
+        fetchAllPrices();
+
+        const intervalId = setInterval(fetchAllPrices, 10000);
+
+        return () => clearInterval(intervalId);
+    },[]);
 
     return (
         <div className="dashboard-container" style={{display: "flex", height: "100vh"}}>
