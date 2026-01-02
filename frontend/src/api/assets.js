@@ -53,8 +53,8 @@ export async function fetchAssetData(symbol) {
     }
 }
 
-export async function fetchChartData(symbol) {
-    const response = await fetch(`http://127.0.0.1:8000/api/prices/chart/${symbol}`);
+export async function fetchChartData(symbol,period) {
+    const response = await fetch(`http://127.0.0.1:8000/api/prices/chart/${symbol}/${period}`);
     if (!response.ok) throw new Error("Erreur lors du fetch de l'historique des prix de l'asset");
 
     return response.json();

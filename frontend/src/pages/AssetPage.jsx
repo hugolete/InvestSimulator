@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useOutletContext } from 'react-router-dom';
-import {buyAsset, fetchAssetData, sellAsset} from "../api/assets";
+import {buyAsset, fetchAssetData, fetchChartData, sellAsset} from "../api/assets";
+import PriceChart from "../components/PriceChart";
 
 export default function AssetPage({profileId}) {
     const { symbol } = useParams();
@@ -17,6 +18,7 @@ export default function AssetPage({profileId}) {
     const [isAmountFiatInvalid, setIsAmountFiatInvalid] = useState(false);
     const [isAmountAssetInvalid, setIsAmountAssetInvalid] = useState(false);
     const [amountAsset, setAmountAsset] = useState(0);
+    const [period, setPeriod] = useState("1h");
 
     //récup des données de l'asset
     useEffect(() => {
@@ -33,7 +35,8 @@ export default function AssetPage({profileId}) {
                     date: period,
                     price: price,
                 }));
-                setChartData(formattedChartData);
+                //setChartData(formattedChartData);
+
                 //récup prix d'hier et pourcentage
                 const yesterdayPrice = historyObject["1d"]
                 const yesterdayDiff = (allPrices[symbol] - yesterdayPrice).toFixed(2);
@@ -58,6 +61,29 @@ export default function AssetPage({profileId}) {
             }
         }
     })
+
+    //Récup des données pour graphique
+    useEffect(() => {
+        if (symbol) {
+            fetchChartData(symbol, period)
+                .then(data => {
+                    const formatted = data.data.map(item => ({
+                        timestamp: item.timestamp,
+                        price: item.close,
+                        dateLabel: new Date(item.timestamp).toLocaleTimeString('fr-FR', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        }),
+                        fullDate: new Date(item.timestamp).toLocaleString('fr-FR')
+                    }));
+
+                    setChartData(formatted);
+                })
+                .catch(err => {
+                    console.error("Erreur lors du chargement du graphique:", err);
+                });
+        }
+    }, [symbol, period]);
 
     //récup données profil
     const { profileData, refreshProfile, allPrices } = useOutletContext();
@@ -203,9 +229,23 @@ export default function AssetPage({profileId}) {
                 }}
             >
                 <h2>{assetDetails.name} ({symbol}) - Graphique</h2>
-                {/* TODO graphique */}
-                <div style={{ height: '500px', border: '1px solid #ccc', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                    [Espace réservé pour le graphique]
+                {/* TODO graphique, bugué a partir de 7d */}
+
+                <div className="chart-container" style={{ marginTop: '20px', background: '#f9f9f9', padding: '20px', borderRadius: '15px' }}>
+                    <PriceChart
+                        data={chartData}
+                        color={yesterdayPct >= 0 ? "#4caf50" : "#f44336"} // Vert si positif, rouge si négatif
+                    />
+                </div>
+                <div className="chart-buttons">
+                    <button onClick={() => setPeriod("1h")}>1H</button>
+                    <button onClick={() => setPeriod("12h")}>12H</button>
+                    <button onClick={() => setPeriod("1d")}>1D</button>
+                    <button onClick={() => setPeriod("7d")}>7J</button>
+                    <button onClick={() => setPeriod("1m")}>1MO</button>
+                    <button onClick={() => setPeriod("6m")}>6MO</button>
+                    <button onClick={() => setPeriod("1y")}>1A</button>
+                    <button onClick={() => setPeriod("5y")}>5A</button>
                 </div>
             </div>
 
