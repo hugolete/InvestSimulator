@@ -53,6 +53,13 @@ export async function fetchAssetData(symbol) {
     }
 }
 
+export async function fetchChartData(symbol) {
+    const response = await fetch(`http://127.0.0.1:8000/api/prices/chart/${symbol}`);
+    if (!response.ok) throw new Error("Erreur lors du fetch de l'historique des prix de l'asset");
+
+    return response.json();
+}
+
 export async function buyAsset(user_id,symbol,amount_fiat) {
     const response = await fetch("http://127.0.0.1:8000/api/buy?user_id=" + encodeURIComponent(user_id) + "&symbol=" + encodeURIComponent(symbol) + "&amount_fiat=" + encodeURIComponent(amount_fiat), {
         method: "POST",
