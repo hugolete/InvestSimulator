@@ -228,20 +228,22 @@ export default function AssetPage({profileId}) {
                     boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                 }}
             >
-                <h2>{assetDetails.name} ({symbol}) - Graphique</h2>
-                {/* TODO graphique, bugué a partir de 7d */}
-
+                <h2>{assetDetails.name} ({symbol}) - Graphique ({period})</h2>
                 <div className="chart-container" style={{ marginTop: '20px', background: '#f9f9f9', padding: '20px', borderRadius: '15px' }}>
                     <PriceChart
                         data={chartData}
                         color={yesterdayPct >= 0 ? "#4caf50" : "#f44336"} // Vert si positif, rouge si négatif
+                        period={period}
                     />
                 </div>
-                <div className="chart-buttons">
+                <div
+                    className="chart-buttons"
+                    style={{ marginTop: '15px', display: 'flex', gap: '10px' }}
+                >
                     <button onClick={() => setPeriod("1h")}>1H</button>
                     <button onClick={() => setPeriod("12h")}>12H</button>
                     <button onClick={() => setPeriod("1d")}>1D</button>
-                    <button onClick={() => setPeriod("7d")}>7J</button>
+                    <button onClick={() => setPeriod("1w")}>7D</button>
                     <button onClick={() => setPeriod("1m")}>1MO</button>
                     <button onClick={() => setPeriod("6m")}>6MO</button>
                     <button onClick={() => setPeriod("1y")}>1A</button>
