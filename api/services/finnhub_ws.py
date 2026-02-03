@@ -144,7 +144,7 @@ def get_stock_history(symbol:str,period:str,full_history:bool=False):
             # conversion en timestamp unix
             df_filtered['timestamp'] = df_filtered['timestamp'].astype(int) // 10 ** 6
 
-            data_list = df_filtered.to_dict(orient='records')
+            #data_list = df_filtered.to_dict(orient='records')
             latest_price = get_stock_price(symbol)
 
             return df_filtered, latest_price
