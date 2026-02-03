@@ -25,9 +25,19 @@ const PriceChart = ({ data, color = "#8884d8", period }) => {
                     />
 
                     <YAxis
-                        //TODO axe y
-                        hide={true}
+                        orientation="right"
                         domain={['auto', 'auto']}
+                        tick={{ fontSize: 11, fill: '#999' }}
+                        axisLine={false}
+                        tickLine={false}
+                        tickFormatter={(value) => {
+                            // formatage prix
+                            if (value >= 1000) {
+                                return `$${(value / 1000).toFixed(1)}k`;
+                            }
+                            return `$${value.toFixed(0)}`;
+                        }}
+                        width={45}
                     />
 
                     <Tooltip
