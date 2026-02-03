@@ -135,7 +135,16 @@ def get_stock_history(symbol:str,period:str,full_history:bool=False):
 
         if full_history:
             # retient que la période mentionnée pour le full (voir dict settings)
-            df_filtered = df[df.index >= target_time]
+            df_filtered = df[df.index >= target_time].copy()
+
+            df_filtered = df_filtered.reset_index()
+            df_filtered = df_filtered.rename(columns={df_filtered.columns[0]: 'timestamp'})
+            df_filtered.columns = [c.lower() for c in df_filtered.columns]
+
+            # conversion en timestamp unix
+            df_filtered['timestamp'] = df_filtered['timestamp'].astype(int) // 10 ** 6
+
+            data_list = df_filtered.to_dict(orient='records')
             latest_price = get_stock_price(symbol)
 
             return df_filtered, latest_price
