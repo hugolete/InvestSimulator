@@ -18,3 +18,10 @@ export async function getProfile(profileId) {
 
     return response.json();
 }
+
+export async function getProfileHistory(profileId) {
+    const response = await fetch(`http://localhost:8000/api/profiles/${profileId}/history`);
+    if (!response.ok) throw new Error("Erreur lors du fetch de l'historique du profil");
+
+    return response.json();
+}

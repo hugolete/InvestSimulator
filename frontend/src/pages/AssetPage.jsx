@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useOutletContext } from 'react-router-dom';
 import {buyAsset, fetchAssetData, fetchChartData, sellAsset} from "../api/assets";
 import PriceChart from "../components/PriceChart";
+import {getProfileHistory} from "../api/profiles";
 
 export default function AssetPage({profileId}) {
     const { symbol } = useParams();
@@ -19,6 +20,7 @@ export default function AssetPage({profileId}) {
     const [isAmountAssetInvalid, setIsAmountAssetInvalid] = useState(false);
     const [amountAsset, setAmountAsset] = useState(0);
     const [period, setPeriod] = useState("1h");
+    const [userHistory, setUserHistory] = useState([]);
 
     //récup des données de l'asset
     useEffect(() => {
@@ -84,6 +86,17 @@ export default function AssetPage({profileId}) {
                 });
         }
     }, [symbol, period]);
+
+    // récup historique user pour calcul PnL
+    useEffect(() => {
+        getProfileHistory(profileId)
+            .then(history => {
+                setUserHistory(history);
+            })
+            .catch(err => {
+                console.error("Erreur lors du chargement du graphique:", err);
+            });
+    }, [profileId, symbol]);
 
     //récup données profil
     const { profileData, refreshProfile, allPrices } = useOutletContext();
@@ -205,6 +218,40 @@ export default function AssetPage({profileId}) {
         setAmountAsset(maxAssetAmount);
         setIsAmountAssetInvalid(false);
     }
+
+    const calculatePnL = (history, symbol, currentPrice) => {
+        const assetHistory = history.filter(t => t.symbol === symbol);
+
+        let openCost = 0;
+        let openQty = 0;
+        let realizedPnL = 0;
+
+        assetHistory.forEach(t => {
+            if (t.side === 'BUY') {
+                openCost += (t.quantity * t.price);
+                openQty += t.quantity;
+            } else if (t.side === 'SELL') {
+                const currentPRU = openCost / openQty;
+                // Profit réalisé = (prix de vente - PRU) * quantité vendue
+                realizedPnL += (t.price - currentPRU) * t.quantity;
+
+                // ajuste le stock restant proportionnellement
+                openCost -= (t.quantity * currentPRU);
+                openQty -= t.quantity;
+            }
+        });
+
+        const finalPRU = openQty > 0.00000001 ? openCost / openQty : 0;
+        const unrealizedPnL = openQty > 0.00000001 ? (currentPrice - finalPRU) * openQty: 0;
+
+        return { unrealizedPnL, realizedPnL, finalPRU };
+    };
+
+    const { unrealizedPnL, realizedPnL, finalPRU } = calculatePnL(
+        userHistory,
+        symbol,
+        assetDetails.price || 0.1
+    );
 
     return (
         <div
@@ -533,9 +580,13 @@ export default function AssetPage({profileId}) {
                     }}
                 >
                     <h3>Vous possédez:</h3>
-                    <p><strong>{assetQuantity} {assetDetails.symbol}</strong></p>
-                    <p><strong>Valeur : {usdWorth} $</strong></p>
+                    <p><strong>{Number(assetQuantity) < 0.00000001 ? "0" : Number(assetQuantity).toFixed(8)} {assetDetails.symbol}</strong></p>
+                    <p><strong>Valeur : {Number(usdWorth).toFixed(2)} $</strong></p>
+                    <p><strong>Profit/perte latent : {Number(unrealizedPnL).toFixed(2)} $</strong></p>
+                    <p><strong>Profit/perte réalisé : {Number(realizedPnL).toFixed(2)} $</strong></p>
+                    <p><strong>Prix de revient unitaire : {Number(finalPRU).toFixed(2)} $</strong></p>
                 </div>
+
             </div>
         </div>
     );
