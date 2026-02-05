@@ -143,6 +143,7 @@ def history(user_id: int, db: Session = Depends(get_db)):
         asset = db.query(Asset).filter(Asset.id == trade.asset_id).first()
 
         result.append({
+            "symbol": asset.symbol,
             "asset_name": asset.name,
             "side": trade.side,
             "quantity": trade.quantity,
