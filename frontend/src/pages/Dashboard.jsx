@@ -124,7 +124,13 @@ function Dashboard({ profileId, onChangeProfile }) {
                 {/* header */}
                 <header style={{display: "flex", justifyContent: "space-between", alignItems: "center"}}>
                     {/* bloc de gauche */}
-                    <div style={{display: "flex", alignItems: "center", gap: "10px"}}>
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "10px"
+                        }}
+                    >
                         {/* bouton pour dérouler le menu */}
                         <button
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -132,12 +138,14 @@ function Dashboard({ profileId, onChangeProfile }) {
                         >
                             {isSidebarOpen ? '<' : '☰'}
                         </button>
-                        <h2>InvestSimulator</h2>
-                    </div>
-
-                    {/* titre dynamique */}
-                    <div style={{textAlign:"center"}}>
-                        <h1>Dashboard</h1>
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '10px 20px',
+                            backdropFilter: 'blur(10px)'
+                        }}>
+                            <h2><i>InvestSimulator</i></h2>
+                        </div>
                     </div>
 
                     {/* bloc de droite */}
@@ -149,7 +157,20 @@ function Dashboard({ profileId, onChangeProfile }) {
                         </div>
                         <div><strong>Valeur totale:</strong> ${totalWorth.toFixed(2)}</div>
                         <div><strong>USD disponible pour trade:</strong> ${usdQuantity.toFixed(2)}</div>
-                        <button onClick={() => navigate("/")} style={{marginTop: "0.5rem"}}>
+                        <button
+                            onClick={() => navigate("/")}
+                            style={{
+                                marginTop: "0.5rem",
+                                padding: '8px 15px',
+                                backgroundColor: '#e0e0e0',
+                                color: '#333',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontSize: '14px',
+                                fontWeight: 'bold',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                        }}>
                             Changer de compte
                         </button>
                     </div>

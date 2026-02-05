@@ -125,9 +125,24 @@ export default function Sidebar({isOpen, profileId, allPrices}) {
             {search.length === 0 && (
                 <div className="normalMenu">
                     {/* Retour au dashboard */}
-                    <button style = {{ marginTop: "1rem" }}>
-                        <strong onClick={() => navigate("/dashboard")}>Dashboard</strong>
-                    </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                        <button
+                            style = {{
+                                marginTop: '15px',
+                                padding: '8px 15px',
+                                backgroundColor: '#e0e0e0',
+                                color: '#333',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontSize: '14px',
+                                fontWeight: 'bold',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                            }}
+                        >
+                            <strong onClick={() => navigate("/dashboard")}>Dashboard</strong>
+                        </button>
+                    </div>
                     {/* TOP ASSETS */}
                     <h3>Top assets</h3>
                     {topAssets.map(asset => (
@@ -165,12 +180,36 @@ export default function Sidebar({isOpen, profileId, allPrices}) {
                                 gap: "0.7rem",
                                 alignItems: "center",
                             }}>
-                                <button onClick={() => {
+                                <button
+                                    style={{
+                                        padding: '8px 15px',
+                                        backgroundColor: '#e0e0e0',
+                                        color: '#333',
+                                        border: 'none',
+                                        borderRadius: '8px',
+                                        cursor: 'pointer',
+                                        fontSize: '14px',
+                                        fontWeight: 'bold',
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                    }}
+                                    onClick={() => {
                                     setShowAdd(!showAdd);
                                     setShowRemove(false);
                                 }}
                                 >+</button>
-                                <button onClick={() => {
+                                <button
+                                    style={{
+                                        padding: '8px 15px',
+                                        backgroundColor: '#e0e0e0',
+                                        color: '#333',
+                                        border: 'none',
+                                        borderRadius: '8px',
+                                        cursor: 'pointer',
+                                        fontSize: '14px',
+                                        fontWeight: 'bold',
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                    }}
+                                    onClick={() => {
                                     setShowRemove(!showRemove);
                                     setShowAdd(false);
                                 }}
