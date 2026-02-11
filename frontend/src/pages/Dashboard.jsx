@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import {Outlet, useNavigate} from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import {getAllPrices} from "../api/assets";
+import {getProfile} from "../api/profiles";
 
 function Dashboard({ profileId, onChangeProfile }) {
     const [profile, setProfile] = useState(null);
@@ -45,20 +46,11 @@ function Dashboard({ profileId, onChangeProfile }) {
         setProfile(null);
 
         try {
-            const response = await fetch(`http://127.0.0.1:8000/api/profiles/${profileId}`);
-
-            if (!response.ok) {
-                throw new Error(`Erreur HTTP: ${response.status}`);
-            }
-
-            const data = await response.json();
-
-            if (Array.isArray(data)) {
-                setProfile(data);
-            } else {
-                console.error("Données de profil invalides:", data);
-                setProfile(null);
-            }
+            getProfile(profileId).then(data => {
+                setProfile(data)
+            }).catch(err => {
+                console.error("Erreur lors du chargement du profil:", err);
+            });
         } catch (error) {
             console.error("Erreur lors du chargement du profil:", error);
             setProfile(null);
