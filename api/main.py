@@ -160,6 +160,22 @@ def performance(user_id:int, db: Session = Depends(get_db)):
     return profiles.get_performance(user_id, db)
 
 
+@app.get("/api/performances")
+def get_assets_daily_percentages(db: Session = Depends(get_db)):
+    assets = db.query(Asset).all()
+    result = []
+
+    for asset in assets:
+        percentage = get_percentage(asset.symbol, "1d", db)
+
+        result.append({
+            "symbol": asset.symbol,
+            "percentage": percentage
+        })
+
+    return result
+
+
 @app.get("/api/profiles/{user_id}/allocation")
 def allocation(user_id: int, db: Session = Depends(get_db)):
     # mesure le % alloué a chaque type d'asset
@@ -323,8 +339,25 @@ def get_global_history(symbol: str, db: Session = Depends(get_db)):
 @app.get("/api/prices/percentage/{symbol}/{period}")
 def get_percentage(symbol: str, period: str, db: Session = Depends(get_db)):
     asset = db.query(Asset).filter(Asset.symbol == symbol).first()
-    before = get_price_history(asset,period)
-    now = get_prix(asset.id)
+
+    try:
+        before = get_price_history(asset, period)
+        now = get_prix(asset.id)
+
+        if now is None or before is None:
+            print(f"Données incomplètes pour {symbol}")
+            return 0.0
+
+        #sécurité
+        b_val = float(before)
+
+        if b_val == 0:
+            print(f"Prix historique à 0 pour {symbol}, calcul annulé.")
+            return 0.0
+
+    except Exception:
+        print(f"Données incomplètes pour {symbol}")
+        return 0.0
 
     percentage = ((now - before) / before) * 100
 
