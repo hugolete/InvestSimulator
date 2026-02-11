@@ -26,6 +26,13 @@ export async function getAssetPercentages(symbol){
     return response.json();
 }
 
+export async function getAssetDailyPercentages() {
+    const response = await fetch(`http://127.0.0.1:8000/api/performances`);
+    if (!response.ok) throw new Error("Erreur lors du fetch des pourcentages journaliers de tous les assets");
+
+    return response.json();
+}
+
 export async function getAllPrices(){
     const response = await fetch(`http://127.0.0.1:8000/api/allprices/`);
     if (!response.ok) throw new Error("Erreur lors du fetch des pourcentages de l'asset");
