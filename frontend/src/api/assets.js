@@ -14,28 +14,28 @@ export async function getAsset(symbol){
 
 export async function getAssetPriceHistory(symbol){
     const response = await fetch(`http://127.0.0.1:8000/api/prices/history/${symbol}`);
-    if (!response.ok) throw new Error("Erreur lors du fetch de l'historique des prix de l'asset");
+    if (!response.ok) console.log("Erreur lors du fetch de l'historique des prix de l'asset");
 
     return response.json();
 }
 
 export async function getAssetPercentages(symbol){
     const response = await fetch(`http://127.0.0.1:8000/api/prices/percentage/${symbol}`);
-    if (!response.ok) throw new Error("Erreur lors du fetch des pourcentages de l'asset");
+    if (!response.ok) console.log("Erreur lors du fetch des pourcentages de l'asset");
 
     return response.json();
 }
 
 export async function getAssetDailyPercentages() {
     const response = await fetch(`http://127.0.0.1:8000/api/performances`);
-    if (!response.ok) throw new Error("Erreur lors du fetch des pourcentages journaliers de tous les assets");
+    if (!response.ok) console.log("Erreur lors du fetch des pourcentages journaliers de tous les assets");
 
     return response.json();
 }
 
 export async function getAllPrices(){
     const response = await fetch(`http://127.0.0.1:8000/api/allprices/`);
-    if (!response.ok) throw new Error("Erreur lors du fetch des pourcentages de l'asset");
+    if (!response.ok) console.log("Erreur lors du fetch des prix de l'asset");
 
     return response.json();
 }

@@ -32,7 +32,7 @@ export default function AssetPage({profileId}) {
                 setAssetPercentages(assetData.percentages);
 
                 // Préparer les données pour le graphique
-                const historyObject = assetData.history.history;
+                const historyObject = assetData.history?.history || {};
                 const formattedChartData = Object.entries(historyObject).map(([period, price]) => ({
                     date: period,
                     price: price,
@@ -252,6 +252,10 @@ export default function AssetPage({profileId}) {
         symbol,
         assetDetails.price || 0.1
     );
+
+    if (!assetDetails || !assetPriceHistory) {
+        return <div className="loading">Chargement des données...</div>;
+    }
 
     return (
         <div
