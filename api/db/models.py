@@ -1,7 +1,7 @@
 # SQLAlchemy (Users, Assets, UserAssets, Trades)
 # Template de la DB
 
-from sqlalchemy import Column, Integer, String, ForeignKey, Float, DateTime, PrimaryKeyConstraint
+from sqlalchemy import Column, Integer, String, ForeignKey, Float, DateTime, PrimaryKeyConstraint, DOUBLE_PRECISION
 from sqlalchemy.orm import relationship, declarative_base
 from datetime import datetime, timezone
 
@@ -62,3 +62,21 @@ class Trade(Base):
 
     user = relationship("User", back_populates="trades")
     asset = relationship("Asset", back_populates="trades")
+
+
+class UserPosition(Base):
+    __tablename__ = "user_positions"
+
+    user_id = Column(Integer, ForeignKey("users.id"))
+    asset_id = Column(Integer, ForeignKey("assets.id"))
+    quantity = Column(DOUBLE_PRECISION, default=0.0)
+    pmp = Column(DOUBLE_PRECISION, default=0.0)
+    total_cost = Column(DOUBLE_PRECISION, default=0.0)
+    last_updated = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        PrimaryKeyConstraint("user_id", "asset_id"),
+    )
+
+    user = relationship("User", back_populates="user_positions")
+    asset = relationship("Asset", back_populates="user_positions")
