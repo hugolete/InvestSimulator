@@ -26,68 +26,72 @@ def buy_asset(user,asset,amount_fiat:float,currency:str,db:Session):
     if user is None or asset is None:
         raise HTTPException(status_code=400, detail="Utilisateur ou asset inexistant")
 
-    price = get_prix(asset.id)
+    try:
+        price = get_prix(asset.id)
 
-    if price is None:
-        raise HTTPException(status_code=404, detail=f"Impossible de récupérer le prix pour {asset.symbol}")
+        if price is None:
+            raise HTTPException(status_code=404, detail=f"Impossible de récupérer le prix pour {asset.symbol}")
 
-    asset_amount = amount_fiat / price
+        asset_amount = amount_fiat / price
 
-    trade = Trade(
-        user_id=user.id,
-        asset_id=asset.id,
-        side="BUY",
-        quantity=asset_amount,
-        price=price
-    )
-
-    db.add(trade)
-
-    # actualisation table user_assets
-    assetToUpdate = db.query(UserAsset).filter(UserAsset.user_id == user.id,UserAsset.asset_id == asset.id).first()
-
-    if assetToUpdate:
-        assetToUpdate.quantity += asset_amount
-    else:
-        assetToUpdate = UserAsset(
+        trade = Trade(
             user_id=user.id,
             asset_id=asset.id,
-            quantity=asset_amount
-        )
-        db.add(assetToUpdate)
-
-    # actualisation user_positions
-    pos = db.query(UserPosition).filter(UserPosition.user_id == user.id, UserPosition.asset_id == asset.id).first()
-
-    if pos:
-        # On calcule le nouveau coût total : (Ancien Qté * Ancien PMP) + Nouveau Cash investi
-        current_total_cost = pos.quantity * pos.pmp
-        new_total_cost = current_total_cost + amount_fiat
-        pos.quantity += asset_amount
-        pos.pmp = new_total_cost / pos.quantity  # Nouveau PMP
-        pos.total_cost = new_total_cost
-        pos.last_updated = datetime.now()
-    else:
-        # Première fois qu'on achète cet asset
-        new_pos = UserPosition(
-            user_id=user.id,
-            asset_id=asset.id,
+            side="BUY",
             quantity=asset_amount,
-            pmp=price,  # Le PMP initial est le prix d'achat
-            total_cost=amount_fiat,
-            last_updated=datetime.now()
+            price=price
         )
-        db.add(new_pos)
 
-    # enlever la currency utilisée pour l'achat
-    currency_user.quantity -= amount_fiat
+        db.add(trade)
 
-    db.commit()
-    db.refresh(trade)
-    db.refresh(assetToUpdate)
-    db.refresh(currency_user)
+        # actualisation table user_assets
+        assetToUpdate = db.query(UserAsset).filter(UserAsset.user_id == user.id, UserAsset.asset_id == asset.id).first()
 
-    return round(asset_amount, 5), round(price, 2)
+        if assetToUpdate:
+            assetToUpdate.quantity += asset_amount
+        else:
+            assetToUpdate = UserAsset(
+                user_id=user.id,
+                asset_id=asset.id,
+                quantity=asset_amount
+            )
+            db.add(assetToUpdate)
+
+        # actualisation user_positions
+        pos = db.query(UserPosition).filter(UserPosition.user_id == user.id, UserPosition.asset_id == asset.id).first()
+
+        if pos:
+            # On calcule le nouveau coût total : (Ancien Qté * Ancien PMP) + Nouveau Cash investi
+            current_total_cost = pos.quantity * pos.pmp
+            new_total_cost = current_total_cost + amount_fiat
+            pos.quantity += asset_amount
+            pos.pmp = new_total_cost / pos.quantity  # Nouveau PMP
+            pos.total_cost = new_total_cost
+            pos.last_updated = datetime.now()
+        else:
+            # Première fois qu'on achète cet asset
+            new_pos = UserPosition(
+                user_id=user.id,
+                asset_id=asset.id,
+                quantity=asset_amount,
+                pmp=price,  # Le PMP initial est le prix d'achat
+                total_cost=amount_fiat,
+                last_updated=datetime.now()
+            )
+            db.add(new_pos)
+
+        # enlever la currency utilisée pour l'achat
+        currency_user.quantity -= amount_fiat
+
+        db.commit()
+        db.refresh(trade)
+        db.refresh(assetToUpdate)
+        db.refresh(currency_user)
+
+        return round(asset_amount, 5), round(price, 2)
+    except Exception as e:
+        db.rollback()
+        raise e
 
 
 def sell_asset(user,asset,amount_asset:float,currency:str,db:Session):
@@ -114,46 +118,50 @@ def sell_asset(user,asset,amount_asset:float,currency:str,db:Session):
     if currency_user is None:
         raise HTTPException(status_code=400, detail="Monnaie inexistante")
 
-    price = get_prix(asset.id)
+    try:
+        price = get_prix(asset.id)
 
-    if price is None:
-        raise HTTPException(status_code=404, detail=f"Impossible de récupérer le prix pour {asset.symbol}")
+        if price is None:
+            raise HTTPException(status_code=404, detail=f"Impossible de récupérer le prix pour {asset.symbol}")
 
-    currency_amount = amount_asset * price
+        currency_amount = amount_asset * price
 
-    trade = Trade(
-        user_id=user.id,
-        asset_id=asset.id,
-        side="SELL",
-        quantity=amount_asset,
-        price=price
-    )
+        trade = Trade(
+            user_id=user.id,
+            asset_id=asset.id,
+            side="SELL",
+            quantity=amount_asset,
+            price=price
+        )
 
-    db.add(trade)
+        db.add(trade)
 
-    # actualisation table user_assets
-    assetToUpdate.quantity -= amount_asset
+        # actualisation table user_assets
+        assetToUpdate.quantity -= amount_asset
 
-    # actualisation table user_positions
-    pos = db.query(UserPosition).filter(UserPosition.user_id == user.id, UserPosition.asset_id == asset.id).first()
+        # actualisation table user_positions
+        pos = db.query(UserPosition).filter(UserPosition.user_id == user.id, UserPosition.asset_id == asset.id).first()
 
-    if pos:
-        pos.quantity -= amount_asset
-        pos.last_updated = datetime.now()
+        if pos:
+            pos.quantity -= amount_asset
+            pos.last_updated = datetime.now()
 
-        # Si on a tout vendu (ou presque, à cause des arrondis float)
-        if pos.quantity <= 0.00000001:
-            db.delete(pos)  # On nettoie la table pour Grok
+            # Si on a tout vendu (ou presque, à cause des arrondis float)
+            if pos.quantity <= 0.00000001:
+                db.delete(pos)  # On nettoie la table pour Grok
 
-    # ajouter la currency obtenue avec la vente
-    currency_user.quantity += currency_amount
+        # ajouter la currency obtenue avec la vente
+        currency_user.quantity += currency_amount
 
-    db.commit()
-    db.refresh(trade)
-    db.refresh(assetToUpdate)
-    db.refresh(currency_user)
+        db.commit()
+        db.refresh(trade)
+        db.refresh(assetToUpdate)
+        db.refresh(currency_user)
 
-    return round(currency_amount,2), round(price,2)
+        return round(currency_amount, 2), round(price, 2)
+    except Exception as e:
+        db.rollback()
+        raise e
 
 
 def convert_currencies(amount: float,from_symbol:str,to_symbol:str,user,db:Session) -> float:
