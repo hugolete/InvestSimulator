@@ -1,7 +1,8 @@
+from datetime import datetime
 from fastapi import HTTPException
 import requests
 from sqlalchemy.orm import Session
-from api.db.models import Trade, UserAsset, Asset
+from api.db.models import Trade, UserAsset, Asset, UserPosition
 from api.services.prices import get_prix
 
 
@@ -28,7 +29,7 @@ def buy_asset(user,asset,amount_fiat:float,currency:str,db:Session):
     price = get_prix(asset.id)
 
     if price is None:
-        print(f"Impossible de récupérer le prix pour {asset.symbol}")
+        raise HTTPException(status_code=404, detail=f"Impossible de récupérer le prix pour {asset.symbol}")
 
     asset_amount = amount_fiat / price
 
@@ -54,6 +55,29 @@ def buy_asset(user,asset,amount_fiat:float,currency:str,db:Session):
             quantity=asset_amount
         )
         db.add(assetToUpdate)
+
+    # actualisation user_positions
+    pos = db.query(UserPosition).filter(UserPosition.user_id == user.id, UserPosition.asset_id == asset.id).first()
+
+    if pos:
+        # On calcule le nouveau coût total : (Ancien Qté * Ancien PMP) + Nouveau Cash investi
+        current_total_cost = pos.quantity * pos.pmp
+        new_total_cost = current_total_cost + amount_fiat
+        pos.quantity += asset_amount
+        pos.pmp = new_total_cost / pos.quantity  # Nouveau PMP
+        pos.total_cost = new_total_cost
+        pos.last_updated = datetime.now()
+    else:
+        # Première fois qu'on achète cet asset
+        new_pos = UserPosition(
+            user_id=user.id,
+            asset_id=asset.id,
+            quantity=asset_amount,
+            pmp=price,  # Le PMP initial est le prix d'achat
+            total_cost=amount_fiat,
+            last_updated=datetime.now()
+        )
+        db.add(new_pos)
 
     # enlever la currency utilisée pour l'achat
     currency_user.quantity -= amount_fiat
@@ -93,7 +117,7 @@ def sell_asset(user,asset,amount_asset:float,currency:str,db:Session):
     price = get_prix(asset.id)
 
     if price is None:
-        print(f"Impossible de récupérer le prix pour {asset.symbol}")
+        raise HTTPException(status_code=404, detail=f"Impossible de récupérer le prix pour {asset.symbol}")
 
     currency_amount = amount_asset * price
 
@@ -109,6 +133,17 @@ def sell_asset(user,asset,amount_asset:float,currency:str,db:Session):
 
     # actualisation table user_assets
     assetToUpdate.quantity -= amount_asset
+
+    # actualisation table user_positions
+    pos = db.query(UserPosition).filter(UserPosition.user_id == user.id, UserPosition.asset_id == asset.id).first()
+
+    if pos:
+        pos.quantity -= amount_asset
+        pos.last_updated = datetime.now()
+
+        # Si on a tout vendu (ou presque, à cause des arrondis float)
+        if pos.quantity <= 0.00000001:
+            db.delete(pos)  # On nettoie la table pour Grok
 
     # ajouter la currency obtenue avec la vente
     currency_user.quantity += currency_amount
