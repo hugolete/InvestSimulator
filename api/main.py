@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 import uvicorn
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
-from .db.models import Asset, Base, User, Trade
+from .db.models import Asset, Base, User, Trade, UserPosition
 from .db.db import get_db, engine
 from .services import profiles
 from .services.binance_ws import run_ws
@@ -226,6 +226,7 @@ def delete_profile(user_id: int, db: Session = Depends(get_db)):
 @app.post("/api/buy")
 def buy_endpoint(user_id:int, symbol:str, amount_fiat:float, currency:str="USD", db: Session = Depends(get_db)):
     symbol_currency = "$"
+    symbol = symbol.upper()
 
     user = db.query(User).filter(User.id == user_id).first()
     asset = db.query(Asset).filter(Asset.symbol == symbol).first()
@@ -456,6 +457,35 @@ def get_favorites(user_id: int):
 
     with open(path, "r") as f:
         return json.load(f)
+        
+# performance de l'user avec prix moyen
+@app.get("/api/profiles/{user_id}/positions")
+def performance(user_id:int, db: Session = Depends(get_db)):
+    positions = db.query(UserPosition).filter(UserPosition.user_id == user_id).all()
+
+    results = []
+
+    for pos in positions:
+        current_price = get_prix(pos.asset_id)
+
+        if current_price:
+            current_value = pos.quantity * current_price
+            pnl_amount = current_value - pos.total_cost
+            pnl_percent = (pnl_amount / pos.total_cost * 100) if pos.total_cost > 0 else 0
+
+            results.append({
+                "symbol": pos.asset.symbol,  # Grâce à ta relationship
+                "quantity": round(pos.quantity, 8),
+                "pmp": round(pos.pmp, 2),
+                "current_price": round(current_price, 2),
+                "total_cost": round(pos.total_cost, 2),
+                "current_value": round(current_value, 2),
+                "pnl_amount": round(pnl_amount, 2),
+                "pnl_percent": round(pnl_percent, 2),
+                "last_updated": pos.last_updated
+            })
+
+    return results
 
 
 if __name__ == "__main__":
