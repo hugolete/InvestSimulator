@@ -10,9 +10,7 @@ def get_portfolio(user_id: int, db: Session):
         raise HTTPException(status_code=404, detail="Profil introuvable")
 
     userAssets = db.query(UserAsset).filter(UserAsset.user_id == user_id).all()
-
-    result = []
-    result.append({"profileName": user.name})
+    assets = []
     total_worth = 0.0
 
     for a in userAssets:
@@ -28,7 +26,7 @@ def get_portfolio(user_id: int, db: Session):
         else:
             sector = asset.sector
 
-        result.append({
+        assets.append({
             "symbol": asset.symbol,
             "name": asset.name,
             "type": asset.type,
@@ -37,11 +35,13 @@ def get_portfolio(user_id: int, db: Session):
             "worth": worth
         })
 
-    result.append({"total_worth": total_worth})
-    result.append({"performance": get_performance(user_id,db)})
-    result.append({"allocation": get_allocation(user_id,db)})
-
-    return result
+    return {
+        "profileName": user.name,
+        "assets": assets,
+        "total_worth": total_worth,
+        "performance": get_performance(user_id, db),
+        "allocation": get_allocation(user_id, db)
+    }
 
 
 def create_profile(name: str, db: Session):

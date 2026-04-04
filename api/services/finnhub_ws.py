@@ -10,6 +10,7 @@ from fastapi import HTTPException
 from api.db.db import SessionLocal
 from api.db.models import Asset
 from dotenv import load_dotenv
+import time
 
 
 load_dotenv()
@@ -61,35 +62,86 @@ def run_finnhub_ws():
 def get_stock_price(symbol: str):
     if symbol in prices:
         return prices[symbol]
-
+    
+    """print("Requête finnhub")
     token = os.getenv("FINNHUB_TOKEN")
     r = requests.get(f"https://finnhub.io/api/v1/quote?symbol={symbol}&token={token}")
 
     if r.ok:
         data = r.json()
-        return data.get("c")  # dernier prix
+        return data.get("c")  # dernier prix"""
 
-    return None
+    # 2. Fallback yfinance
+    try:
+        ticker_yahoo = yf.Ticker(symbol)
+        data = ticker_yahoo.history(period="1d")
+
+        if data.empty:
+            print(f"⚠️  {symbol}: Pas de données yfinance")
+            return None
+
+        last_quote = float(data['Close'].iloc[-1])
+        print(f"✅ {symbol}: ${last_quote}")
+
+        # Optionnel: ajouter au cache
+        prices[symbol] = last_quote
+
+        return last_quote
+
+    except Exception as e:
+        print(f"❌ {symbol}: Erreur - {e}")
+        return None
 
 
-def get_stock_prices(tickers):
-    data = yf.download(
+def get_stock_prices(tickers,chunk_size=50,delay=2):
+    """data = yf.download(
         tickers=" ".join(tickers),
         period="1d",
         interval="1m",
         group_by="ticker",
         threads=True,
         progress=False
-    )
+    )"""
 
     prices = {}
 
-    for symbol in tickers:
+    """for symbol in tickers:
         try:
             last_close = data[symbol]["Close"].dropna().iloc[-1]
             prices[symbol] = round(float(last_close),2)
         except Exception:
-            prices[symbol] = None  # en cas de symbole exotique non trouvé
+            prices[symbol] = None  # en cas de symbole exotique non trouvé"""
+            
+    for i in range(0, len(tickers), chunk_size):
+        chunk = tickers[i:i+chunk_size]
+        
+        data = yf.download(
+            tickers=" ".join(chunk),
+            period="1d",
+            interval="1m",
+            group_by="ticker",
+            threads=True,
+            progress=False
+        )
+        
+        for ticker in chunk:
+            try:
+                # Gestion du cas 1 seul ticker vs plusieurs
+                if len(chunk) == 1:
+                    last_close = data['Close'].dropna().iloc[-1]
+                else:
+                    last_close = data[ticker]['Close'].dropna().iloc[-1]
+                
+                prices[ticker] = round(float(last_close), 2)
+            except:
+                prices[ticker] = None
+                
+        if i + chunk_size < len(tickers):
+            time.sleep(delay)
+            
+    print(f"\n=== Résumé ===")
+    print(f"Prix récupérés: {sum(1 for p in prices.values() if p is not None)}/{len(tickers)}")
+    print(f"Échecs: {sum(1 for p in prices.values() if p is None)}")
 
     return prices
 
