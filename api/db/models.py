@@ -16,6 +16,7 @@ class User(Base):
 
     assets = relationship("UserAsset", back_populates="user")
     trades = relationship("Trade", back_populates="user")
+    user_positions = relationship("UserPosition", back_populates="user")
 
 
 # Table Assets = catalogue global des actifs
@@ -30,6 +31,7 @@ class Asset(Base):
 
     users = relationship("UserAsset", back_populates="asset")
     trades = relationship("Trade", back_populates="asset")
+    user_positions = relationship("UserPosition", back_populates="user")
 
 
 # Table UserAssets = portefeuille actuel d’un user
