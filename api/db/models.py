@@ -31,7 +31,7 @@ class Asset(Base):
 
     users = relationship("UserAsset", back_populates="asset")
     trades = relationship("Trade", back_populates="asset")
-    user_positions = relationship("UserPosition", back_populates="user")
+    user_positions = relationship("UserPosition", back_populates="asset")
 
 
 # Table UserAssets = portefeuille actuel d’un user
