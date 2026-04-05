@@ -39,7 +39,7 @@ def get_portfolio(user_id: int, db: Session):
         "profileName": user.name,
         "assets": assets,
         "total_worth": total_worth,
-        "performance": get_performance(user_id, db),
+        "performance": get_performance(user_id,2000, db),
         "allocation": get_allocation(user_id, db)
     }
 
