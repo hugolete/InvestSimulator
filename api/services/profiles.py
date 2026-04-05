@@ -86,12 +86,12 @@ def delete_profile(user_id: int, db: Session):
     db.commit()
 
 
-def get_performance(user_id:int,db:Session):
+def get_performance(user_id:int,original_amount:int,db:Session):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Profil introuvable")
 
-    original_amount = 50000
+    #original_amount = 50000
     userAssets = db.query(UserAsset).filter(UserAsset.user_id == user_id).all()
     total_worth = 0.0
 

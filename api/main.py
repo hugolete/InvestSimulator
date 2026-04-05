@@ -156,8 +156,8 @@ def history(user_id: int, db: Session = Depends(get_db)):
 
 @app.get("/api/profiles/{user_id}/performance")
 def performance(user_id:int, db: Session = Depends(get_db)):
-    # compte l'argent total investi (50000 usd) et mesure la perf en %
-    return profiles.get_performance(user_id, db)
+    # compte l'argent total investi et mesure la perf en %
+    return profiles.get_performance(user_id, 2000, db)
 
 
 @app.get("/api/performances")
