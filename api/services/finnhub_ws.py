@@ -55,8 +55,15 @@ async def restart_finnhub_ws():
 
 
 def run_finnhub_ws():
-    loop = asyncio.get_event_loop()
+    """loop = asyncio.get_event_loop()
+    loop.create_task(restart_finnhub_ws())"""
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     loop.create_task(restart_finnhub_ws())
+
+    loop.run_forever()
 
 
 def get_stock_price(symbol: str):

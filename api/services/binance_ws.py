@@ -46,8 +46,14 @@ def get_crypto_price(symbol: str):
 
 # Pour lancer le WS
 def run_ws():
-    loop = asyncio.get_event_loop()
+    """loop = asyncio.get_event_loop()
+    loop.create_task(start_binance_ws())"""
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     loop.create_task(start_binance_ws())
+
+    loop.run_forever()
 
 
 def get_binance_history(symbol:str,period:str,full_history:bool=False):
