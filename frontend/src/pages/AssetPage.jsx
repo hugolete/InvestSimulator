@@ -21,6 +21,7 @@ export default function AssetPage({profileId}) {
     const [amountAsset, setAmountAsset] = useState(0);
     const [period, setPeriod] = useState("1h");
     const [userHistory, setUserHistory] = useState([]);
+    const [comment, setComment] = useState("MANUAL")
 
     //récup des données de l'asset
     useEffect(() => {
@@ -145,7 +146,7 @@ export default function AssetPage({profileId}) {
             return;
         }
 
-        buyAsset(profileId,orderSymbol,amountFiat).then(response => {
+        buyAsset(profileId,orderSymbol,amountFiat,comment).then(response => {
             console.log("Achat réussi :", response);
 
             const boughtQuantity = response.amount;
@@ -183,7 +184,7 @@ export default function AssetPage({profileId}) {
             return;
         }
 
-        sellAsset(profileId,orderSymbol,amountAsset).then(response => {
+        sellAsset(profileId,orderSymbol,amountAsset,comment).then(response => {
             console.log("Vente réussie :", response);
 
             const soldQuantity = response.amount;
