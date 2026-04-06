@@ -6,7 +6,7 @@ from api.db.models import Trade, UserAsset, Asset, UserPosition
 from api.services.prices import get_prix
 
 
-def buy_asset(user,asset,amount_fiat:float,currency:str,db:Session):
+def buy_asset(user,asset,amount_fiat:float,currency:str,comment:str,db:Session):
     # vérifier que l’utilisateur possède assez de fonds
     currency = db.query(Asset).filter(Asset.symbol == currency.upper()).first()
     print(asset)
@@ -39,7 +39,8 @@ def buy_asset(user,asset,amount_fiat:float,currency:str,db:Session):
             asset_id=asset.id,
             side="BUY",
             quantity=asset_amount,
-            price=price
+            price=price,
+            comment=comment
         )
 
         db.add(trade)
@@ -94,7 +95,7 @@ def buy_asset(user,asset,amount_fiat:float,currency:str,db:Session):
         raise e
 
 
-def sell_asset(user,asset,amount_asset:float,currency:str,db:Session):
+def sell_asset(user,asset,amount_asset:float,currency:str,comment:str,db:Session):
     # vérifier que l’utilisateur possède assez de l'asset qu'il veut vendre
     if user is None or asset is None:
         raise HTTPException(status_code=400, detail="Utilisateur ou asset inexistant")
@@ -131,7 +132,8 @@ def sell_asset(user,asset,amount_asset:float,currency:str,db:Session):
             asset_id=asset.id,
             side="SELL",
             quantity=amount_asset,
-            price=price
+            price=price,
+            comment=comment
         )
 
         db.add(trade)

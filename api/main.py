@@ -148,7 +148,8 @@ def history(user_id: int, db: Session = Depends(get_db)):
             "side": trade.side,
             "quantity": trade.quantity,
             "price": trade.price,
-            "timestamp": trade.timestamp
+            "timestamp": trade.timestamp,
+            "comment": trade.comment
         })
 
     return result
@@ -224,14 +225,14 @@ def delete_profile(user_id: int, db: Session = Depends(get_db)):
 
 # acheter un asset
 @app.post("/api/buy")
-def buy_endpoint(user_id:int, symbol:str, amount_fiat:float, currency:str="USD", db: Session = Depends(get_db)):
+def buy_endpoint(user_id:int, symbol:str, amount_fiat:float, comment:str, currency:str="USD", db: Session = Depends(get_db)):
     symbol_currency = "$"
     symbol = symbol.upper()
 
     user = db.query(User).filter(User.id == user_id).first()
     asset = db.query(Asset).filter(Asset.symbol == symbol).first()
 
-    asset_amount, price = buy_asset(user,asset,amount_fiat,currency,db)
+    asset_amount, price = buy_asset(user,asset,amount_fiat,currency,comment,db)
 
     total_price = asset_amount * price
 
@@ -247,11 +248,11 @@ def buy_endpoint(user_id:int, symbol:str, amount_fiat:float, currency:str="USD",
 
 # vendre un asset possédé par le profil
 @app.post("/api/sell")
-def sell_endpoint(user_id:int, symbol:str, asset_amount:float,currency:str="USD",db: Session = Depends(get_db)):
+def sell_endpoint(user_id:int, symbol:str, asset_amount:float,comment:str, currency:str="USD",db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     asset = db.query(Asset).filter(Asset.symbol == symbol).first()
 
-    currency_amount, price = sell_asset(user,asset,asset_amount,currency,db)
+    currency_amount, price = sell_asset(user,asset,asset_amount,currency,comment,db)
 
     symbol_currency = ""
 

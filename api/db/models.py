@@ -61,6 +61,7 @@ class Trade(Base):
     quantity = Column(Float)
     price = Column(Float)  # prix au moment du trade (en USD)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc)) # date du trade en UTC
+    comment = Column(String)
 
     user = relationship("User", back_populates="trades")
     asset = relationship("Asset", back_populates="trades")
@@ -82,3 +83,19 @@ class UserPosition(Base):
 
     user = relationship("User", back_populates="user_positions")
     asset = relationship("Asset", back_populates="user_positions")
+
+
+class Order(Base):
+    __tablename__ = "orders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    asset_id = Column(Integer, ForeignKey("assets.id"))
+
+    order_type = Column(String)  # "STOP_LOSS" ou "TAKE_PROFIT"
+    target_percentage = Column(Float)  # exemple : -7.5 ou 15.0
+    trigger_price = Column(DOUBLE_PRECISION)  # Prix réel calculé à l'ouverture
+    quantity = Column(DOUBLE_PRECISION)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    asset = relationship("Asset")
