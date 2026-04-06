@@ -1,9 +1,11 @@
+import threading
 from datetime import datetime, timezone
 import uvicorn
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
-from .db.models import Asset, Base, User, Trade, UserPosition
-from .db.db import get_db, engine
+from api.services.orders import check_triggers, set_protection
+from .db.models import Asset, Base, User, Trade, UserPosition, Order
+from .db.db import get_db, engine, SessionLocal
 from .services import profiles
 from .services.binance_ws import run_ws
 from .services.finnhub_ws import run_finnhub_ws, get_stock_prices
@@ -12,6 +14,7 @@ from .services.prices import get_prix, get_price_history
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import json
+import time
 
 
 Base.metadata.create_all(bind=engine)
@@ -28,8 +31,10 @@ app.add_middleware(
 
 @app.on_event("startup")
 def startup_event():
-    run_ws()
-    run_finnhub_ws()
+    threading.Thread(target=trade_watcher,daemon=True).start()
+
+    threading.Thread(target=run_ws, daemon=True).start()
+    threading.Thread(target=run_finnhub_ws, daemon=True).start()
 
     print("Startup terminé")
 
@@ -42,9 +47,28 @@ def home():
     }
 
 
+def trade_watcher():
+    """Boucle infinie qui check les ordres toutes les minutes"""
+    print("Watcher démarré...")
+
+    while True:
+        # On crée une session manuelle car on est hors du contexte FastAPI
+        db = SessionLocal()
+        try:
+            # Appel de ta fonction globale (sans user_id, pour tout le monde)
+            check_triggers(db)
+        except Exception as e:
+            print(f"Erreur Watcher: {e}")
+        finally:
+            db.close()  # TRÈS IMPORTANT : Toujours fermer la session
+
+        time.sleep(60)  # Attend 1 minute avant le prochain check
+
+
 # récup prix d'une crypto
 @app.get("/api/assets/{symbol}")
 def get_asset_price(symbol: str, db: Session = Depends(get_db)):
+    check_triggers(db)
     asset = db.query(Asset).filter(Asset.symbol == symbol.upper()).first()
 
     if not asset:
@@ -492,6 +516,49 @@ def performance(user_id:int, db: Session = Depends(get_db)):
 @app.get("/api/profiles/{user_id}/cash")
 def cash(user_id:int, db: Session = Depends(get_db)):
     return profiles.get_cash(user_id,db)
+
+
+@app.post("/api/profiles/{user_id}/orders")
+def add_order(user_id: int, symbol:str,order_type:str,percentage:float,quantity:float, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+
+    asset = db.query(Asset).filter(Asset.symbol == symbol.upper()).first()
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset non trouvé")
+
+    try:
+        message = set_protection(
+            user=user,
+            asset=asset,
+            order_type=order_type,
+            percentage=percentage,
+            quantity=quantity,
+            db=db
+        )
+        return {"status": "success", "message": message}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/profiles/{user_id}/orders")
+def get_user_orders(user_id: int, db: Session = Depends(get_db)):
+    orders = db.query(Order).filter(Order.user_id == user_id).all()
+
+    results = []
+    for order in orders:
+        results.append({
+            "id": order.id,
+            "symbol": order.asset.symbol,
+            "type": order.order_type,
+            "target_perc": order.target_percentage,
+            "trigger_price": round(order.trigger_price, 2),
+            "quantity": order.quantity
+        })
+
+
+    return results
 
 
 if __name__ == "__main__":

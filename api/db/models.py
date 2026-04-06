@@ -99,3 +99,4 @@ class Order(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     asset = relationship("Asset")
+    user = relationship("User")
