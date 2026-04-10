@@ -74,7 +74,10 @@ def get_asset_price(symbol: str, db: Session = Depends(get_db)):
     if not asset:
         return {"error": "Asset not found"}
 
-    price = get_prix(asset.id)
+    try:
+        price = get_prix(asset.id)
+    except Exception as e:
+        print("Echec de la récupération du prix : ",e)
 
     if asset.type == "crypto":
         sector = "Crypto"

@@ -13,11 +13,10 @@ def get_prix(asset_id:int):
         if asset.type == "crypto":
             new_symbol = asset.symbol + "USDT"  # rajout du USDT pour la rech binance
             price = get_crypto_price(new_symbol.upper())  # prix live via Binance
-        elif asset.type == "stock" or asset.type == "etf":
+        elif asset.type == "stock" or asset.type == "etf" or asset.type == "commodity":
             price = get_stock_price(asset.symbol.upper()) # Actions et ETF
         else:
-            # placeholder pour bonds
-            price = 1.0
+            raise Exception("Type d'asset invalide")
 
         return price
 
