@@ -1,7 +1,7 @@
 import threading
 from datetime import datetime, timezone
 import uvicorn
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Form
 from sqlalchemy.orm import Session
 from api.services.orders import check_triggers, set_protection
 from .db.models import Asset, Base, User, Trade, UserPosition, Order
@@ -252,7 +252,7 @@ def delete_profile(user_id: int, db: Session = Depends(get_db)):
 
 # acheter un asset
 @app.post("/api/buy")
-def buy_endpoint(user_id:int, symbol:str, amount_fiat:float, comment:str, currency:str="USD", db: Session = Depends(get_db)):
+def buy_endpoint(user_id:int = Form(...), symbol:str = Form(...), amount_fiat:float = Form(...), comment:str = Form(...), currency:str="USD", db: Session = Depends(get_db)):
     symbol_currency = "$"
     symbol = symbol.upper()
 
@@ -269,13 +269,14 @@ def buy_endpoint(user_id:int, symbol:str, amount_fiat:float, comment:str, curren
         "amount": asset_amount,
         "price": f"{amount_fiat}{symbol_currency}",
         "assetUnitPrice": f"{price}{symbol_currency}",
-        "total_price": f"{total_price}{symbol_currency}"
+        "total_price": f"{total_price}{symbol_currency}",
+        "comment": comment
     }
 
 
 # vendre un asset possédé par le profil
 @app.post("/api/sell")
-def sell_endpoint(user_id:int, symbol:str, asset_amount:float,comment:str, currency:str="USD",db: Session = Depends(get_db)):
+def sell_endpoint(user_id:int = Form(...), symbol:str = Form(...), asset_amount:float = Form(...), comment:str = Form(...), currency:str="USD",db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     asset = db.query(Asset).filter(Asset.symbol == symbol).first()
 
@@ -295,7 +296,8 @@ def sell_endpoint(user_id:int, symbol:str, asset_amount:float,comment:str, curre
         "symbol": asset.symbol,
         "amount": asset_amount,
         "price": f"{price}{symbol_currency}",
-        "total_price": f"{total_price}{symbol_currency}"
+        "total_price": f"{total_price}{symbol_currency}",
+        "comment": comment
     }
 
 
