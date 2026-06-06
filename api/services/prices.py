@@ -15,6 +15,8 @@ def get_prix(asset_id:int):
             price = get_crypto_price(new_symbol.upper())  # prix live via Binance
         elif asset.type == "stock" or asset.type == "etf" or asset.type == "commodity":
             price = get_stock_price(asset.symbol.upper()) # Actions et ETF
+        elif asset.type == "currency":
+            price = 1.0  # USD/EUR treated as 1:1 for portfolio valuation
         else:
             raise Exception("Type d'asset invalide")
 
