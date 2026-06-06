@@ -1,6 +1,7 @@
 import threading
 from datetime import datetime, timezone
 import uvicorn
+from dotenv import load_dotenv
 from fastapi import FastAPI, Depends, HTTPException, Form, Header
 from sqlalchemy.orm import Session
 from api.services.orders import check_triggers, set_protection
@@ -26,9 +27,11 @@ async def verify_key(x_api_key: str = Header(...)):
 Base.metadata.create_all(bind=engine)
 app = FastAPI(dependencies=[Depends(verify_key)])
 
+load_dotenv()
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000","http://127.0.0.1:3000"], #autorise le site react a interroger
+    allow_origins=["http://localhost:3000","http://127.0.0.1:3000",os.getenv("VPS_IP")], #autorise le site react a interroger
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -80,6 +83,7 @@ def get_asset_price(symbol: str, db: Session = Depends(get_db)):
     if not asset:
         return {"error": "Asset not found"}
 
+    price = 0.0
     try:
         price = get_prix(asset.id)
     except Exception as e:
