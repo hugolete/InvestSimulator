@@ -416,6 +416,7 @@ async def set_order(
                     "percentage": percentage,
                     "quantity": quantity,
                 },
+                headers={"X-API-Key": API_KEY}
             ) as r:
                 r.raise_for_status()
                 data = await r.json()
