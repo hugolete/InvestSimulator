@@ -63,7 +63,7 @@ const PriceChart = ({ data, color = "#8884d8", period }) => {
                                 second: '2-digit'
                             });
                         }}
-                        formatter={(value) => [`$${parseFloat(value).toLocaleString()}`, "Prix"]}
+                        formatter={(value) => [`$${parseFloat(value).toFixed(2)}`, "Prix"]}
                     />
 
                     <Line

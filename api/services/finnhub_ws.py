@@ -118,7 +118,7 @@ def get_stock_price(symbol: str):
 
         last_quote = round(float(data['Close'].dropna().iloc[-1]), 2)
         prices[symbol] = last_quote
-        
+
         return last_quote
 
     except Exception as e:
@@ -190,7 +190,14 @@ def get_stock_history(symbol:str,period:str,full_history:bool=False):
 
         if full_history:
             # retient que la période mentionnée pour le full (voir dict settings)
+
             df_filtered = df[df.index >= target_time].copy()
+
+            if df_filtered.empty:
+                # Marché fermé : prendre les dernières données disponibles
+                n_candles = {"1h": 60, "12h": 144, "1d": 96, "1w": 168, "1m": 30, "6m": 180, "1y": 52, "5y": 60}
+                n = n_candles.get(period, 60)
+                df_filtered = df.tail(n).copy()
 
             df_filtered = df_filtered.reset_index()
             df_filtered = df_filtered.rename(columns={df_filtered.columns[0]: 'timestamp'})

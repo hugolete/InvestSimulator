@@ -1,3 +1,4 @@
+import math
 import threading
 from datetime import datetime, timezone
 import uvicorn
@@ -397,11 +398,24 @@ def get_all_percentage(symbol: str, db: Session = Depends(get_db)):
     now = get_prix(asset.id)
 
     results = {}
+
     for period, price in global_history["history"].items():
         if period == "now":
             continue
-        percentage = ((now - price) / price) * 100
-        results[period] = round(percentage, 2)
+
+        try:
+            if not price or float(price) == 0:
+                results[period] = 0.0
+                continue
+
+            percentage = ((now - price) / price) * 100
+
+            if math.isnan(percentage) or math.isinf(percentage):
+                results[period] = 0.0
+            else:
+                results[period] = round(percentage, 2)
+        except:
+            results[period] = 0.0
 
     return results
 
