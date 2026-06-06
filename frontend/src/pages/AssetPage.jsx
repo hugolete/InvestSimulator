@@ -27,30 +27,31 @@ export default function AssetPage({profileId}) {
 
     //récup des données de l'asset
     useEffect(() => {
-        if (symbol) {
-            fetchAssetData(symbol).then(assetData => {
-                console.log("AssetData : ",assetData)
-                setAssetDetails(assetData.asset);
-                setAssetPriceHistory(assetData.history);
-                setAssetPercentages(assetData.percentages);
+        if (!symbol) return
 
-                // Préparer les données pour le graphique
-                const historyObject = assetData.history?.history || {};
-                const formattedChartData = Object.entries(historyObject).map(([period, price]) => ({
-                    date: period,
-                    price: price,
-                }));
-                //setChartData(formattedChartData);
+        // Reset immédiat
+        setAssetDetails(null)
+        setAssetPriceHistory(null)
 
-                //récup prix d'hier et pourcentage
-                const yesterdayPrice = historyObject["1d"]
+        fetchAssetData(symbol).then(assetData => {
+            console.log("AssetData : ",assetData)
+            setAssetDetails(assetData.asset);
+            setAssetPriceHistory(assetData.history);
+            setAssetPercentages(assetData.percentages);
 
-                //const currentPrice = allPrices[symbol] ?? assetDetails?.price ?? 0;
-                const currentPrice = assetDetails?.price ?? allPrices[symbol] ?? 0
-                const yesterdayDiff = (currentPrice - yesterdayPrice).toFixed(2);
-                //console.log("yesterday diff: ",yesterdayDiff);
-            })
-        }
+            // Préparer les données pour le graphique
+            const historyObject = assetData.history?.history || {};
+            const formattedChartData = Object.entries(historyObject).map(([period, price]) => ({
+                date: period,
+                price: price,
+            }));
+            //setChartData(formattedChartData);
+
+            //récup prix d'hier et pourcentage
+            const yesterdayPrice = historyObject["1d"]
+            const currentPrice = assetDetails?.price ?? allPrices[symbol] ?? 0
+            const yesterdayDiff = (currentPrice - yesterdayPrice).toFixed(2);
+        })
     }, [symbol]);
 
     //Récup des données pour graphique
