@@ -12,7 +12,7 @@ from .services import profiles
 from .services.binance_ws import run_ws
 from .services.finnhub_ws import run_finnhub_ws, get_stock_prices
 from .services.trade import buy_asset, sell_asset
-from .services.prices import get_prix, get_price_history, calculate_percentage
+from .services.prices import get_prix, get_price_history, calculate_percentage, calculate_percentage_bulk
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import json
@@ -210,17 +210,7 @@ def performance(user_id:int, db: Session = Depends(get_db)):
 
 @app.get("/api/performances")
 def get_assets_daily_percentages(db: Session = Depends(get_db)):
-    assets = db.query(Asset).all()
-    result = []
-
-    for asset in assets:
-        percentage = calculate_percentage(asset.symbol, "1d", db)
-        result.append({
-            "symbol": asset.symbol,
-            "percentage": percentage
-        })
-
-    return result
+    return calculate_percentage_bulk(db)
 
 
 @app.get("/api/profiles/{user_id}/allocation")

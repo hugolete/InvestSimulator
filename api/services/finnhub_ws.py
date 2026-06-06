@@ -188,6 +188,22 @@ def get_stock_history(symbol:str,period:str,full_history:bool=False):
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = [col[0] for col in df.columns]
 
+        if period == "1d" and not full_history:
+            df_daily = yf.download(symbol, period="5d", interval="1d", progress=False)
+
+            if isinstance(df_daily.columns, pd.MultiIndex):
+                df_daily.columns = [col[0] for col in df_daily.columns]
+
+            if not df_daily.empty and len(df_daily) >= 2:
+                close_val = df_daily['Close'].iloc[-2]
+
+                if hasattr(close_val, 'iloc'):
+                    close_val = close_val.iloc[0]
+
+                return float(close_val)
+
+            return 0.0
+
         if full_history:
             # retient que la période mentionnée pour le full (voir dict settings)
 
