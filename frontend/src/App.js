@@ -7,7 +7,12 @@ import AssetPage from "./pages/AssetPage";
 import Dashboard from "./pages/Dashboard";
 
 function App() {
-  const [profileId, setProfileId] = useState(null);
+    const [profileId, setProfileId] = useState(localStorage.getItem("profileId") ? parseInt(localStorage.getItem("profileId")) : null); // ← restaure au refresh
+
+    const handleSelectProfile = (id) => {
+        localStorage.setItem("profileId", id)  // ← sauvegarde
+        setProfileId(id)
+    }
 
   return (
       <Router>
@@ -15,7 +20,7 @@ function App() {
           {/* Page d'accueil */}
           <Route
               path="/"
-              element={<Home onSelectProfile={setProfileId} />}
+              element={<Home onSelectProfile={handleSelectProfile} />}
           />
 
           {/* Page pour créer un profil */}

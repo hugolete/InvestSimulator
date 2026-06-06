@@ -36,13 +36,16 @@ function Dashboard({ profileId, onChangeProfile }) {
         setProfile(null);
 
         try {
-            const data = await getProfile(profileId)  // await au lieu de .then()
+            const data = await Promise.race([
+                getProfile(profileId),
+                new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 10000))
+            ])
             setProfile(data)
         } catch (err) {
             console.error("Erreur lors du chargement du profil:", err)
             setProfile(null)
         } finally {
-            setIsLoading(false)  // s'exécute après le await
+            setIsLoading(false)
         }
     }
 
