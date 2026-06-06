@@ -36,16 +36,13 @@ function Dashboard({ profileId, onChangeProfile }) {
         setProfile(null);
 
         try {
-            getProfile(profileId).then(data => {
-                setProfile(data)
-            }).catch(err => {
-                console.error("Erreur lors du chargement du profil:", err);
-            });
-        } catch (error) {
-            console.error("Erreur lors du chargement du profil:", error);
-            setProfile(null);
+            const data = await getProfile(profileId)  // await au lieu de .then()
+            setProfile(data)
+        } catch (err) {
+            console.error("Erreur lors du chargement du profil:", err)
+            setProfile(null)
         } finally {
-            setIsLoading(false);
+            setIsLoading(false)  // s'exécute après le await
         }
     }
 
