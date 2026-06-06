@@ -18,6 +18,17 @@ async function apiFetch(path, options = {}) {
     return response.json()
 }
 
+export const apiForm = (path, data) => {
+    const formData = new FormData()
+    Object.entries(data).forEach(([key, value]) => formData.append(key, value))
+
+    return fetch(`${API_URL}${path}`, {
+        method: "POST",
+        headers: { "X-API-Key": API_KEY },
+        body: formData
+    }).then(r => r.json())
+}
+
 // Helpers
 export const apiGet = (path) => apiFetch(path)
 export const apiPost = (path, data) => apiFetch(path, { method: "POST", body: JSON.stringify(data) })
