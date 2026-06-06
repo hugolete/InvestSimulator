@@ -45,7 +45,8 @@ export default function AssetPage({profileId}) {
                 //récup prix d'hier et pourcentage
                 const yesterdayPrice = historyObject["1d"]
 
-                const currentPrice = allPrices[symbol] ?? assetDetails?.price ?? 0;
+                //const currentPrice = allPrices[symbol] ?? assetDetails?.price ?? 0;
+                const currentPrice = assetDetails?.price ?? allPrices[symbol] ?? 0
                 const yesterdayDiff = (currentPrice - yesterdayPrice).toFixed(2);
                 //console.log("yesterday diff: ",yesterdayDiff);
             })
@@ -95,6 +96,16 @@ export default function AssetPage({profileId}) {
     //récup asset de l'user
     const asset = profileData.find(item => item.symbol === symbol)*/
     //console.log("Asset de l'user : ",asset, " pour le symbole : ",symbol)
+
+    useEffect(() => {
+        if (!symbol) return
+        const interval = setInterval(() => {
+            fetchAssetData(symbol).then(data => {
+                setAssetDetails(data.asset)
+            })
+        }, 30000) // refresh toutes les 30s
+        return () => clearInterval(interval)
+    }, [symbol])
 
     const usdQuantity = profileData.assets?.find(a => a.symbol === "USD")?.quantity ?? 0
     const asset = profileData.assets?.find(a => a.symbol === symbol)
@@ -234,7 +245,10 @@ export default function AssetPage({profileId}) {
         assetDetails?.price || 0.1
     );
 
-    const currentPrice = allPrices[symbol] || assetDetails?.price || 0
+    const currentPrice = assetDetails?.price ?? allPrices[symbol] ?? 0
+    console.log("assetDetails:", assetDetails)
+    console.log("assetDetails.price:", assetDetails?.price)
+    console.log("currentPrice:", currentPrice)
     const yesterdayPrice = assetPriceHistory?.history?.["1d"] || 0
     const yesterdayDiff = yesterdayPrice > 0 ? (currentPrice - yesterdayPrice).toFixed(2) : "—"
     const yesterdayPct = yesterdayPrice > 0 ? ((yesterdayDiff / yesterdayPrice) * 100).toFixed(2) : "—"
@@ -318,7 +332,7 @@ export default function AssetPage({profileId}) {
                 >
                     <h3>Trading</h3>
                     <p style={{ fontWeight: 'bold', fontSize: '1.5rem', marginBottom: '15px' }}>
-                        Prix Actuel : ${allPrices[symbol] || assetDetails?.price || 'N/A'}
+                        Prix Actuel : ${currentPrice.toFixed(2) || 'N/A'}
                     </p>
 
                     {/* pourcentage par rapport au jour précédent */}

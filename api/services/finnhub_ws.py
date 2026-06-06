@@ -78,10 +78,16 @@ def get_stock_price(symbol: str):
         data = r.json()
         return data.get("c")  # dernier prix"""
 
+    # 1. Check du cache
+    from api.main import stock_price_cache
+
+    if symbol in stock_price_cache and stock_price_cache[symbol]:
+        return stock_price_cache[symbol]
+
     # 2. Fallback yfinance
-    try:
+    """try:
         ticker_yahoo = yf.Ticker(symbol)
-        data = ticker_yahoo.history(period="1d")
+        data = ticker_yahoo.history(period="1d", interval="1m")
 
         if data.empty:
             print(f"⚠️  {symbol}: Pas de données yfinance")
@@ -93,6 +99,26 @@ def get_stock_price(symbol: str):
         # Optionnel: ajouter au cache
         prices[symbol] = last_quote
 
+        return last_quote
+
+    except Exception as e:
+        print(f"❌ {symbol}: Erreur - {e}")
+        return None"""
+
+    try:
+        data = yf.download(
+            tickers=symbol,
+            period="1d",
+            interval="1m",
+            progress=False
+        )
+
+        if data.empty:
+            return None
+
+        last_quote = round(float(data['Close'].dropna().iloc[-1]), 2)
+        prices[symbol] = last_quote
+        
         return last_quote
 
     except Exception as e:
