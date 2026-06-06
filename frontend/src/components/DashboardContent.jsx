@@ -61,22 +61,16 @@ function DashboardContent({ profileId }) {
         return () => clearInterval(intervalId);
     }, []);
 
-    const extractActivePositions = (data) => {
-        if (!Array.isArray(data)) return [];
-
-        return data.filter(item =>
-            item.symbol &&                   // Doit avoir un symbole
-            item.symbol !== 'USD' &&         // On exclut le cash (souvent géré à part)
-            item.quantity > 0.00000001 &&    // On ignore la "poussière"
-            item.type !== 'currency'         // Optionnel: exclure les monnaies fiat
-        );
-    };
-
     if (!profile) {
         return <div>Chargement du profil...</div>;
     }
 
-    const activePositions = extractActivePositions(profile);
+    const activePositions = profile.assets?.filter(item =>
+        item.symbol &&
+        item.symbol !== 'USD' &&
+        item.quantity > 0.00000001 &&
+        item.type !== 'currency'
+    ) ?? [];
     /*const totalWorth = profile.find(item => item.total_worth)?.total_worth || 0;
     const performance = profile.find(item => item.performance)?.performance || 0;
     const cash = profile.find(item => item.symbol === 'USD')?.quantity || 0;*/
