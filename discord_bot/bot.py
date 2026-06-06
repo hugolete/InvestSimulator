@@ -9,6 +9,8 @@ load_dotenv()
 
 API_BASE = os.getenv("API_BASE_URL", "http://localhost:8000")
 TOKEN = os.getenv("DISCORD_TOKEN")
+API_KEY = os.getenv("API_SECRET_KEY")
+
 
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
@@ -18,21 +20,21 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 async def api_get(path: str):
     async with aiohttp.ClientSession() as s:
-        async with s.get(f"{API_BASE}{path}") as r:
+        async with s.get(f"{API_BASE}{path}", headers={"X-API-Key": API_KEY}) as r:
             r.raise_for_status()
             return await r.json()
 
 
 async def api_post(path: str, data: dict):
     async with aiohttp.ClientSession() as s:
-        async with s.post(f"{API_BASE}{path}", data=data) as r:
+        async with s.post(f"{API_BASE}{path}", data=data, headers={"X-API-Key": API_KEY}) as r:
             r.raise_for_status()
             return await r.json()
 
 
 async def api_delete(path: str):
     async with aiohttp.ClientSession() as s:
-        async with s.delete(f"{API_BASE}{path}") as r:
+        async with s.delete(f"{API_BASE}{path}", headers={"X-API-Key": API_KEY}) as r:
             r.raise_for_status()
             return await r.json()
 
