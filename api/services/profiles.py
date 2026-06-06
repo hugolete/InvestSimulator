@@ -57,7 +57,7 @@ def create_profile(name: str, db: Session):
 
     # Ajouter le solde de départ (50k us dollars)
     dollar = db.query(Asset).filter(Asset.symbol == "USD").first()
-    starting_balance = UserAsset(user_id=new_user.id, asset_id=dollar.id, quantity=50000)
+    starting_balance = UserAsset(user_id=new_user.id, asset_id=dollar.id, quantity=2000)
     db.add(starting_balance)
     db.commit()
 

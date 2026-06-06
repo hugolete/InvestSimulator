@@ -8,7 +8,7 @@ export default function PortfolioHeader({ profileId }) {
     const [positions, setPositions] = useState(0);
     const [liquid,setLiquid] = useState(0);
 
-    const initialAmount = 50000;
+    const initialAmount = 2000;
 
     useEffect(() => {
         if (!profileId) return;
