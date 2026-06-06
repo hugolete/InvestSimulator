@@ -6,14 +6,16 @@ import {getProfileHistory} from "../api/profiles";
 
 export default function AssetPage({profileId}) {
     const { symbol } = useParams();
+
+    //récup données profil
+    const { profileData, refreshProfile, allPrices } = useOutletContext();
+
     const [assetDetails, setAssetDetails] = useState(null);
     const [assetPriceHistory, setAssetPriceHistory] = useState(null);
     const [assetPercentages, setAssetPercentages] = useState(null);
     const [chartData, setChartData] = useState(null);
     const [isBuyMenuOpen, setIsBuyMenuOpen] = useState(false);
     const [isSellMenuOpen, setIsSellMenuOpen] = useState(false);
-    const [yesterdayPct, setYesterdayPct] = useState(null);
-    const [yesterdayDiff, setYesterdayDiff] = useState(null);
     const [orderSymbol, setOrderSymbol] = useState(symbol);
     const [amountFiat, setAmountFiat] = useState(0);
     const [isAmountFiatInvalid, setIsAmountFiatInvalid] = useState(false);
@@ -42,28 +44,13 @@ export default function AssetPage({profileId}) {
 
                 //récup prix d'hier et pourcentage
                 const yesterdayPrice = historyObject["1d"]
-                const yesterdayDiff = (allPrices[symbol] - yesterdayPrice).toFixed(2);
+
+                const currentPrice = allPrices[symbol] ?? assetDetails?.price ?? 0;
+                const yesterdayDiff = (currentPrice - yesterdayPrice).toFixed(2);
                 //console.log("yesterday diff: ",yesterdayDiff);
-                setYesterdayDiff(yesterdayDiff);
-                setYesterdayPct(assetData.percentages["1d"]);
             })
         }
     }, [symbol]);
-
-    const yesterdayPrice = assetPriceHistory?.history?.["1d"] || 0;
-    const baseYesterdayPct = assetPercentages?.["1d"] || 0;
-
-    //refresh des pourcentages avec les prix en temps réel
-    useEffect(() => {
-        if (allPrices && symbol && yesterdayPrice !== 0){
-            if (allPrices[symbol] !== undefined){
-                const diff = (allPrices[symbol] - yesterdayPrice).toFixed(2);
-                setYesterdayDiff(diff);
-                const pct = ((diff / yesterdayPrice) * 100).toFixed(2);
-                setYesterdayPct(pct);
-            }
-        }
-    })
 
     //Récup des données pour graphique
     useEffect(() => {
@@ -99,17 +86,6 @@ export default function AssetPage({profileId}) {
             });
     }, [profileId, symbol]);
 
-    //récup données profil
-    const { profileData, refreshProfile, allPrices } = useOutletContext();
-
-    if (!profileData) {
-        return <div>Chargement des détails du profil...</div>;
-    }
-
-    if (!assetDetails && symbol) {
-        return <p>Chargement des données de {symbol}...</p>;
-    }
-
     /*récup usd de l'user
     const usdAsset = profileData.find(item => item.symbol === "USD")
     //console.log("UsdAsset : ",usdAsset)
@@ -127,7 +103,7 @@ export default function AssetPage({profileId}) {
     let usdWorth = 0;
     if (asset && asset.quantity) {
         assetQuantity = asset.quantity;
-        usdWorth = (assetQuantity * assetDetails.price).toFixed(2);
+        usdWorth = (assetQuantity * assetDetails?.price).toFixed(2);
     }
 
     const handleBuySubmit = (e) => {
@@ -255,11 +231,24 @@ export default function AssetPage({profileId}) {
     const { unrealizedPnL, realizedPnL, finalPRU } = calculatePnL(
         userHistory,
         symbol,
-        assetDetails.price || 0.1
+        assetDetails?.price || 0.1
     );
+
+    const currentPrice = allPrices[symbol] || assetDetails?.price || 0
+    const yesterdayPrice = assetPriceHistory?.history?.["1d"] || 0
+    const yesterdayDiff = yesterdayPrice > 0 ? (currentPrice - yesterdayPrice).toFixed(2) : "—"
+    const yesterdayPct = yesterdayPrice > 0 ? ((yesterdayDiff / yesterdayPrice) * 100).toFixed(2) : "—"
 
     if (!assetDetails || !assetPriceHistory) {
         return <div className="loading">Chargement des données...</div>;
+    }
+
+    if (!profileData) {
+        return <div>Chargement des détails du profil...</div>;
+    }
+
+    if (!assetDetails && symbol) {
+        return <p>Chargement des données de {symbol}...</p>;
     }
 
     return (
@@ -284,7 +273,7 @@ export default function AssetPage({profileId}) {
                     boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                 }}
             >
-                <h2>{assetDetails.name} ({symbol}) - Graphique ({period})</h2>
+                <h2>{assetDetails?.name} ({symbol}) - Graphique ({period})</h2>
                 <div className="chart-container" style={{ marginTop: '20px', background: '#f9f9f9', padding: '20px', borderRadius: '15px' }}>
                     <PriceChart
                         data={chartData}
@@ -329,7 +318,7 @@ export default function AssetPage({profileId}) {
                 >
                     <h3>Trading</h3>
                     <p style={{ fontWeight: 'bold', fontSize: '1.5rem', marginBottom: '15px' }}>
-                        Prix Actuel : ${allPrices[symbol] || 'N/A'}
+                        Prix Actuel : ${allPrices[symbol] || assetDetails?.price || 'N/A'}
                     </p>
 
                     {/* pourcentage par rapport au jour précédent */}
@@ -575,9 +564,9 @@ export default function AssetPage({profileId}) {
                     }}
                 >
                     <h3>Informations sur l'actif</h3>
-                    <p><strong>Symbole:</strong> {assetDetails.symbol}</p>
-                    <p><strong>Nom:</strong> {assetDetails.name}</p>
-                    <p><strong>Type:</strong> {assetDetails.type}</p>
+                    <p><strong>Symbole:</strong> {assetDetails?.symbol}</p>
+                    <p><strong>Nom:</strong> {assetDetails?.name}</p>
+                    <p><strong>Type:</strong> {assetDetails?.type}</p>
                 </div>
                 <div
                     className="asset-user-details"
@@ -589,7 +578,7 @@ export default function AssetPage({profileId}) {
                     }}
                 >
                     <h3>Vous possédez:</h3>
-                    <p><strong>{Number(assetQuantity) < 0.00000001 ? "0" : Number(assetQuantity).toFixed(8)} {assetDetails.symbol}</strong></p>
+                    <p><strong>{Number(assetQuantity) < 0.00000001 ? "0" : Number(assetQuantity).toFixed(8)} {assetDetails?.symbol}</strong></p>
                     <p><strong>Valeur : {Number(usdWorth).toFixed(2)} $</strong></p>
                     <p><strong>Profit/perte latent : {Number(unrealizedPnL).toFixed(2)} $</strong></p>
                     <p><strong>Profit/perte réalisé : {Number(realizedPnL).toFixed(2)} $</strong></p>

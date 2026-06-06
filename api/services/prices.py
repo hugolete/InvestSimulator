@@ -41,5 +41,30 @@ def get_price_history(asset, period:str, full_history:bool=False):
         else:
             return get_stock_history(symbol,period) # juste le prix X temps dans le passé
     else:
-        # placeholder pour bonds et ETFs
         return 0
+
+
+def calculate_percentage(symbol: str, period: str, db):
+    asset = db.query(Asset).filter(Asset.symbol == symbol).first()
+    if not asset:
+        return 0.0
+    try:
+        before = get_price_history(asset, period)
+        now = get_prix(asset.id)
+
+        if now is None or before is None:
+            return 0.0
+
+        b_val = float(before)
+        if b_val == 0:
+            return 0.0
+
+        percentage = ((now - b_val) / b_val) * 100
+
+        import math
+        if math.isnan(percentage) or math.isinf(percentage):
+            return 0.0
+
+        return round(percentage, 2)
+    except Exception:
+        return 0.0
