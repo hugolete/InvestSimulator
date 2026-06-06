@@ -16,3 +16,7 @@ export async function getProfile(profileId) {
 export async function getProfileHistory(profileId) {
     return apiGet(`/api/profiles/${profileId}/history`)
 }
+
+export async function createProfile(name) {
+    return apiPost(`/api/profiles?name=${encodeURIComponent(name)}`, {})
+}

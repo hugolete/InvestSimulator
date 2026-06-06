@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { createProfile } from "../api/profiles"
 
 export default function CreateProfile() {
     const [name, setName] = useState("");
@@ -9,10 +10,7 @@ export default function CreateProfile() {
         console.log("Submitted")
         e.preventDefault();
 
-        const res = await fetch("http://127.0.0.1:8000/api/profiles?name=" + encodeURIComponent(name), {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-API-Key": API_KEY },
-        });
+        const res = await createProfile(name)
 
         console.log(res)
 
