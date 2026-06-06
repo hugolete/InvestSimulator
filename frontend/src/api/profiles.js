@@ -1,5 +1,6 @@
 // profiles.js
 import { apiGet } from "./api"
+import { apiPost } from "./api"
 
 export async function getProfiles() {
     return apiGet("/api/profiles/")
