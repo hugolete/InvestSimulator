@@ -1,7 +1,7 @@
 import threading
 from datetime import datetime, timezone
 import uvicorn
-from fastapi import FastAPI, Depends, HTTPException, Form
+from fastapi import FastAPI, Depends, HTTPException, Form, Header
 from sqlalchemy.orm import Session
 from api.services.orders import check_triggers, set_protection
 from .db.models import Asset, Base, User, Trade, UserPosition, Order
@@ -17,8 +17,14 @@ import json
 import time
 
 
+async def verify_key(x_api_key: str = Header(...)):
+    if x_api_key != os.getenv("API_SECRET_KEY"):
+        raise HTTPException(status_code=403)
+    return x_api_key
+
+
 Base.metadata.create_all(bind=engine)
-app = FastAPI()
+app = FastAPI(dependencies=[Depends(verify_key)])
 
 app.add_middleware(
     CORSMiddleware,
