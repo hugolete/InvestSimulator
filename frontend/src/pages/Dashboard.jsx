@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, {useEffect, useState} from "react";
 import {Outlet, useNavigate} from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import {getAllPrices} from "../api/assets";
-import {getProfile} from "../api/profiles";
+import {editProfile, getProfile} from "../api/profiles";
 
 function Dashboard({ profileId, onChangeProfile }) {
     const [profile, setProfile] = useState(null);
@@ -14,28 +14,18 @@ function Dashboard({ profileId, onChangeProfile }) {
     const [newProfileName, setNewProfileName] = useState("");
     const [allPrices,setAllPrices] = useState({});
 
-    const handleNameChangeSubmit = () => {
-        const newName = newProfileName
-
-        if (!newName.trim()) {
+    const handleNameChangeSubmit = async () => {
+        if (!newProfileName.trim()) {
             alert("Le nom ne peut pas être vide.");
             return;
         }
 
-        const requestBody = new URLSearchParams();
-        requestBody.append('new_name', newName);
-
-        fetch(`http://127.0.0.1:8000/api/profiles/${profileId}/edit?new_name=` + encodeURIComponent(newName), {
-            method: 'PUT'
-        })
-            .then(data => {
-                console.log("Succès de l'API:", data);
-                setIsProfileEditOpen(false);
-            })
-            .catch(error => {
-                console.error("Échec de l'édition:", error);
-                alert(`Échec de la modification: ${error.message}`);
-            });
+        try {
+            await editProfile(profileId, newProfileName)
+            setIsProfileEditOpen(false)
+        } catch (error) {
+            alert(`Échec de la modification: ${error.message}`)
+        }
     };
 
     // Récupérer les infos du profil (total_worth, USD quantity, etc)
@@ -91,7 +81,7 @@ function Dashboard({ profileId, onChangeProfile }) {
         return <div style={{textAlign: "center", padding: "50px", color: "red"}}>Erreur : Profil non trouvé ou non accessible.</div>;
     }
 
-    // trouver quantité USD disponible
+    /* trouver quantité USD disponible
     const usdAsset = profile.find(item => item.symbol === "USD")
     //console.log("UsdAsset : ",usdAsset)
     const usdQuantity = usdAsset.quantity
@@ -104,7 +94,11 @@ function Dashboard({ profileId, onChangeProfile }) {
 
     //nom du compte
     const profileNameObject = profile.find(item => 'profileName' in item);
-    const profileName = profileNameObject.profileName
+    const profileName = profileNameObject.profileName*/
+
+    const usdQuantity = profile.assets?.find(a => a.symbol === "USD")?.quantity ?? 0
+    const totalWorth = profile.total_worth ?? 0
+    const profileName = profile.profileName ?? ""
 
     return (
         <div className="dashboard-container" style={{display: "flex", height: "100vh"}}>

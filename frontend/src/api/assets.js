@@ -1,7 +1,7 @@
 import { apiGet, apiPost } from "./api"
 
 export async function getAssets(){
-    return apiGet("/api/assets/")
+    return apiGet("/api/assets")
 }
 
 export async function getAsset(symbol){
@@ -21,7 +21,7 @@ export async function getAssetDailyPercentages() {
 }
 
 export async function getAllPrices(){
-    return apiGet("/api/allprices/")
+    return apiGet("/api/allprices")
 }
 
 export async function fetchAssetData(symbol) {

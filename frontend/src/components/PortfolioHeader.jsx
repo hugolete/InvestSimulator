@@ -15,21 +15,19 @@ export default function PortfolioHeader({ profileId }) {
 
         const fetchData = async () => {
             const profile = await getProfile(profileId);
-            const perf = await getPerformance(profileId); //pourcentage
+            const perf = await getPerformance(profileId);
             const roundedPerf = perf.toFixed(2);
 
-            const totalWorthObject = profile.find(item => 'total_worth' in item);
-            const totalWorth = totalWorthObject.total_worth
+            const totalWorth = profile.total_worth ?? 0
             const roundedTotal = totalWorth.toFixed(2)
 
             setTotal(roundedTotal);
             setPerfPercent(roundedPerf);
 
-            const usdAsset = profile.find(item => item.symbol === "USD")
-            const usdQuantity = usdAsset.quantity
+            const usdQuantity = profile.assets?.find(a => a.symbol === "USD")?.quantity ?? 0
             const roundedUsdQuantity = usdQuantity.toFixed(2)
 
-            const positions = roundedTotal - usdQuantity
+            const positions = totalWorth - usdQuantity
             const roundedPositions = positions.toFixed(2)
 
             setPositions(roundedPositions)

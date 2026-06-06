@@ -91,9 +91,12 @@ function DashboardContent({ profileId }) {
     }
 
     const activePositions = extractActivePositions(profile);
-    const totalWorth = profile.find(item => item.total_worth)?.total_worth || 0;
+    /*const totalWorth = profile.find(item => item.total_worth)?.total_worth || 0;
     const performance = profile.find(item => item.performance)?.performance || 0;
-    const cash = profile.find(item => item.symbol === 'USD')?.quantity || 0;
+    const cash = profile.find(item => item.symbol === 'USD')?.quantity || 0;*/
+    const totalWorth = profile.total_worth ?? 0;
+    const performance = profile.performance ?? 0;
+    const cash = profile.assets?.find(a => a.symbol === "USD")?.quantity ?? 0;
     const topAssetsSymbols = ["BTC", "NVDA", "AAPL", "QQQ", "SPY"];
     const topAssets = allAssets.filter(a => topAssetsSymbols.includes(a.symbol));
 

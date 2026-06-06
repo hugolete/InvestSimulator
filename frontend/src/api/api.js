@@ -1,5 +1,8 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000"
-const API_KEY = import.meta.env.VITE_API_KEY
+const API_URL = "http://localhost:8000"
+const API_KEY = process.env.REACT_APP_API_KEY
+
+console.log("API_KEY:", process.env.REACT_APP_API_KEY)
+console.log("API_URL:", API_URL)
 
 async function apiFetch(path, options = {}) {
     const response = await fetch(`${API_URL}${path}`, {
@@ -19,3 +22,4 @@ async function apiFetch(path, options = {}) {
 export const apiGet = (path) => apiFetch(path)
 export const apiPost = (path, data) => apiFetch(path, { method: "POST", body: JSON.stringify(data) })
 export const apiDelete = (path) => apiFetch(path, { method: "DELETE" })
+export const apiPut = (path) => apiFetch(path, { method: "PUT" })
