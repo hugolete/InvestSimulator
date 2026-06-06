@@ -100,55 +100,25 @@ def get_stock_price(symbol: str):
         return None
 
 
-def get_stock_prices(tickers,chunk_size=50,delay=2):
-    """data = yf.download(
+def get_stock_prices(tickers):
+    data = yf.download(
         tickers=" ".join(tickers),
         period="1d",
         interval="1m",
         group_by="ticker",
         threads=True,
         progress=False
-    )"""
+    )
 
     prices = {}
-
-    """for symbol in tickers:
+    for ticker in tickers:
         try:
-            last_close = data[symbol]["Close"].dropna().iloc[-1]
-            prices[symbol] = round(float(last_close),2)
-        except Exception:
-            prices[symbol] = None  # en cas de symbole exotique non trouvé"""
-            
-    for i in range(0, len(tickers), chunk_size):
-        chunk = tickers[i:i+chunk_size]
-        
-        data = yf.download(
-            tickers=" ".join(chunk),
-            period="1d",
-            interval="1m",
-            group_by="ticker",
-            threads=True,
-            progress=False
-        )
-        
-        for ticker in chunk:
-            try:
-                # Gestion du cas 1 seul ticker vs plusieurs
-                if len(chunk) == 1:
-                    last_close = data['Close'].dropna().iloc[-1]
-                else:
-                    last_close = data[ticker]['Close'].dropna().iloc[-1]
-                
-                prices[ticker] = round(float(last_close), 2)
-            except:
-                prices[ticker] = None
-                
-        if i + chunk_size < len(tickers):
-            time.sleep(delay)
-            
-    print(f"\n=== Résumé ===")
-    print(f"Prix récupérés: {sum(1 for p in prices.values() if p is not None)}/{len(tickers)}")
-    print(f"Échecs: {sum(1 for p in prices.values() if p is None)}")
+            if len(tickers) == 1:
+                prices[ticker] = round(float(data['Close'].dropna().iloc[-1]), 2)
+            else:
+                prices[ticker] = round(float(data[ticker]['Close'].dropna().iloc[-1]), 2)
+        except:
+            prices[ticker] = None
 
     return prices
 

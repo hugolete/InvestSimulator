@@ -69,7 +69,7 @@ function Dashboard({ profileId, onChangeProfile }) {
 
         fetchAllPrices();
 
-        const intervalId = setInterval(fetchAllPrices, 15000);
+        const intervalId = setInterval(fetchAllPrices, 30000);
 
         return () => clearInterval(intervalId);
     },[]);

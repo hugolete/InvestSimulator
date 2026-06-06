@@ -2,13 +2,14 @@ import React, {useCallback, useEffect, useState} from 'react';
 import PortfolioHeader from './PortfolioHeader';
 import {getProfile} from "../api/profiles";
 import {getFavorites} from "../api/favorites";
-import {getAllPrices, getAssetDailyPercentages, getAssets} from "../api/assets";
+import {getAssetDailyPercentages, getAssets} from "../api/assets";
+import {useOutletContext} from "react-router-dom";
 
 function DashboardContent({ profileId }) {
     const [profile, setProfile] = useState(null);
     const [favorites, setFavorites] = useState([]);
     const [allAssets, setAllAssets] = useState([]);
-    const [allPrices,setAllPrices] = useState({});
+    const { allPrices } = useOutletContext();
     const [allPercentages,setAllPercentages] = useState({})
 
     useEffect(() => {
@@ -37,21 +38,6 @@ function DashboardContent({ profileId }) {
     useEffect(() => {
         fetchFavorites();
     }, [profileId,fetchFavorites]);
-
-    // récup de tous les prix pour refresh
-    useEffect(() => {
-        const fetchAllPrices = () => {
-            getAllPrices().then(pricesData => {
-                setAllPrices(pricesData);
-            })
-        }
-
-        fetchAllPrices();
-
-        const intervalId = setInterval(fetchAllPrices, 15000);
-
-        return () => clearInterval(intervalId);
-    },[]);
 
     // récup pourcentages + refresh
     useEffect(() => {

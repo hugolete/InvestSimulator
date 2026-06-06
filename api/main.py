@@ -23,11 +23,10 @@ async def verify_key(x_api_key: str = Header(...)):
         raise HTTPException(status_code=403)
     return x_api_key
 
+load_dotenv()
 
 Base.metadata.create_all(bind=engine)
 app = FastAPI(dependencies=[Depends(verify_key)])
-
-load_dotenv()
 
 app.add_middleware(
     CORSMiddleware,
@@ -37,13 +36,34 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+stock_price_cache = {}
+
+def refresh_stock_prices(symbols):
+    global stock_price_cache
+    stock_price_cache = get_stock_prices(symbols)
+
+
+def stock_price_loop():
+    while True:
+        with SessionLocal() as db:
+            symbols = [a.symbol for a in db.query(Asset).filter(
+                Asset.type.in_(["stock", "etf"])
+            ).all()]
+        refresh_stock_prices(symbols)
+
+        none_count = sum(1 for p in stock_price_cache.values() if p is None)
+        ok_count = sum(1 for p in stock_price_cache.values() if p is not None)
+        print(f"[Stock Cache] ✅ {ok_count} prix OK | ❌ {none_count} None")
+
+        time.sleep(90)  # refresh toutes les 1 min 30
+
 
 @app.on_event("startup")
 def startup_event():
     threading.Thread(target=trade_watcher,daemon=True).start()
-
     threading.Thread(target=run_ws, daemon=True).start()
     threading.Thread(target=run_finnhub_ws, daemon=True).start()
+    threading.Thread(target=stock_price_loop, daemon=True).start()
 
     print("Startup terminé")
 
@@ -111,20 +131,13 @@ def get_assets(db: Session = Depends(get_db)):
     assets = db.query(Asset).all()
     result = []
 
-    stock_symbols = [a.symbol for a in assets if a.type in ["stock", "etf"]]
-    stock_prices = get_stock_prices(stock_symbols)
-
     for a in assets:
         if a.type == "crypto":
             sector = "Crypto"
             price = get_prix(a.id)
         elif a.type in ["stock", "etf"]:
-            if a.type == "etf":
-                sector = "ETF"
-            else:
-                sector = a.sector
-
-            price = stock_prices.get(a.symbol, 0.0)
+            sector = "ETF" if a.type == "etf" else a.sector
+            price = stock_price_cache.get(a.symbol, 0.0)  # ✅ cache
         else:
             sector = a.sector
             price = 0.0
@@ -146,18 +159,14 @@ def get_all_asset_prices(db: Session = Depends(get_db)):
     assets = db.query(Asset).all()
     result = {}
 
-    stock_symbols = [a.symbol for a in assets if a.type in ["stock", "etf"]]
-    stock_prices = get_stock_prices(stock_symbols)
-
     for a in assets:
         if a.type == "crypto":
-            price = get_prix(a.id)
+            result[a.symbol] = get_prix(a.id)
         elif a.type in ["stock", "etf"]:
-            price = stock_prices.get(a.symbol, 0.0)
+            # Utilise le cache, 0.0 si pas encore chargé
+            result[a.symbol] = stock_price_cache.get(a.symbol, 0.0)
         else:
-            price = 0.0
-
-        result[a.symbol] = price
+            result[a.symbol] = 0.0
 
     return result
 

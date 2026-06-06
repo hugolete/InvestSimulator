@@ -110,15 +110,19 @@ export default function AssetPage({profileId}) {
         return <p>Chargement des données de {symbol}...</p>;
     }
 
-    //récup usd de l'user
+    /*récup usd de l'user
     const usdAsset = profileData.find(item => item.symbol === "USD")
     //console.log("UsdAsset : ",usdAsset)
     const usdQuantity = usdAsset.quantity
     //console.log("UsdQuantity : ",usdQuantity)
 
     //récup asset de l'user
-    const asset = profileData.find(item => item.symbol === symbol)
+    const asset = profileData.find(item => item.symbol === symbol)*/
     //console.log("Asset de l'user : ",asset, " pour le symbole : ",symbol)
+
+    const usdQuantity = profileData.assets?.find(a => a.symbol === "USD")?.quantity ?? 0
+    const asset = profileData.assets?.find(a => a.symbol === symbol)
+
     let assetQuantity = 0;
     let usdWorth = 0;
     if (asset && asset.quantity) {
