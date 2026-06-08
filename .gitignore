@@ -3,6 +3,5 @@
 api/db/invest_simulator.db
 __pycache__/
 frontend/node_modules/
-frontend/public/
 discord_bot/.env
 frontend/.env
