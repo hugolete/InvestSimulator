@@ -1,9 +1,6 @@
 const API_URL = "http://localhost:8000"
 const API_KEY = process.env.REACT_APP_API_KEY
 
-console.log("API_KEY:", process.env.REACT_APP_API_KEY)
-console.log("API_URL:", API_URL)
-
 async function apiFetch(path, options = {}) {
     const response = await fetch(`${API_URL}${path}`, {
         ...options,
