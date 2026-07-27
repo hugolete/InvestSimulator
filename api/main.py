@@ -38,10 +38,19 @@ app.add_middleware(
 )
 
 stock_price_cache = {}
+percentage_cache = {}
+
 
 def refresh_stock_prices(symbols):
-    global stock_price_cache
+    global stock_price_cache, percentage_cache
     stock_price_cache = get_stock_prices(symbols)
+
+    with SessionLocal() as db:
+        try:
+            res = calculate_percentage_bulk(db)
+            percentage_cache = {item["symbol"]: item["percentage"] for item in res}
+        except Exception as e:
+            print(f"Erreur cache percentages: {e}")
 
 
 def stock_price_loop():
@@ -210,6 +219,9 @@ def performance(user_id:int, db: Session = Depends(get_db)):
 
 @app.get("/api/performances")
 def get_assets_daily_percentages(db: Session = Depends(get_db)):
+    if percentage_cache:
+        return [{"symbol": s, "percentage": p} for s, p in percentage_cache.items()]
+
     return calculate_percentage_bulk(db)
 
 
