@@ -3,217 +3,221 @@ import {Outlet, useNavigate} from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import {getAllPrices} from "../api/assets";
 import {editProfile, getProfile} from "../api/profiles";
+import {Menu, PanelLeftClose, PanelLeftOpen, User, DollarSign, Wallet, Shield, X} from "lucide-react";
 
-function Dashboard({ profileId, onChangeProfile }) {
+function Dashboard({ profileId }) {
     const [profile, setProfile] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isProfileInfoOpen, setIsProfileInfoOpen] = useState(false);
-    const [isProfileEditOpen, setIsProfileEditOpen] = useState(false)
+    const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
     const navigate = useNavigate();
     const [newProfileName, setNewProfileName] = useState("");
-    const [allPrices,setAllPrices] = useState({});
+    const [allPrices, setAllPrices] = useState({});
 
-    const handleNameChangeSubmit = async () => {
+    const handleNameChangeSubmit = async (e) => {
+        e.preventDefault();
         if (!newProfileName.trim()) {
             alert("Le nom ne peut pas être vide.");
             return;
         }
 
         try {
-            await editProfile(profileId, newProfileName)
-            setIsProfileEditOpen(false)
+            await editProfile(profileId, newProfileName);
+            setIsProfileEditOpen(false);
+            fetchProfileData(profileId);
         } catch (error) {
-            alert(`Échec de la modification: ${error.message}`)
+            alert(`Échec de la modification: ${error.message}`);
         }
     };
 
-    // Récupérer les infos du profil (total_worth, USD quantity, etc)
     const fetchProfileData = async (profileId) => {
         if (!profileId) return;
 
         setIsLoading(true);
-        setProfile(null);
-
         try {
             const data = await Promise.race([
                 getProfile(profileId),
                 new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 10000))
-            ])
-            setProfile(data)
+            ]);
+            setProfile(data);
         } catch (err) {
-            console.error("Erreur lors du chargement du profil:", err)
-            setProfile(null)
+            console.error("Erreur lors du chargement du profil:", err);
+            setProfile(null);
         } finally {
-            setIsLoading(false)
+            setIsLoading(false);
         }
-    }
+    };
 
     const refreshProfile = () => {
-        // appelle la fonction de fetch avec l'ID du profil actuel
         fetchProfileData(profileId);
     };
 
     useEffect(() => {
-        // appelle la fonction pour le chargement initial
         fetchProfileData(profileId);
     }, [profileId]);
 
-    // récup de tous les prix pour refresh
     useEffect(() => {
         const fetchAllPrices = () => {
             getAllPrices().then(pricesData => {
                 setAllPrices(pricesData);
-            })
-        }
+            });
+        };
 
         fetchAllPrices();
-
         const intervalId = setInterval(fetchAllPrices, 30000);
-
         return () => clearInterval(intervalId);
-    },[]);
+    }, []);
 
     if (isLoading) {
-        return <div style={{textAlign: "center", padding: "50px"}}>Chargement des données du profil...</div>;
+        return <div style={{ textAlign: "center", padding: "100px", color: "#94a3b8", background: "#0b0f19", height: "100vh" }}>Chargement des données du terminal...</div>;
     }
     if (!profile) {
-        return <div style={{textAlign: "center", padding: "50px", color: "red"}}>Erreur : Profil non trouvé ou non accessible.</div>;
+        return <div style={{ textAlign: "center", padding: "100px", color: "#ff3d00", background: "#0b0f19", height: "100vh" }}>Erreur : Profil non trouvé ou non accessible.</div>;
     }
 
-    /* trouver quantité USD disponible
-    const usdAsset = profile.find(item => item.symbol === "USD")
-    //console.log("UsdAsset : ",usdAsset)
-    const usdQuantity = usdAsset.quantity
-    //console.log("UsdQuantity : ",usdQuantity)
-
-    // valeur totale du compte
-    const totalWorthObject = profile.find(item => 'total_worth' in item);
-    const totalWorth = totalWorthObject.total_worth
-    //console.log("Total Worth : ", totalWorth);
-
-    //nom du compte
-    const profileNameObject = profile.find(item => 'profileName' in item);
-    const profileName = profileNameObject.profileName*/
-
-    const usdQuantity = profile.assets?.find(a => a.symbol === "USD")?.quantity ?? 0
-    const totalWorth = profile.total_worth ?? 0
-    const profileName = profile.profileName ?? ""
+    const usdQuantity = profile.assets?.find(a => a.symbol === "USD")?.quantity ?? 0;
+    const totalWorth = profile.total_worth ?? 0;
+    const profileName = profile.profileName ?? "";
 
     return (
-        <div className="dashboard-container" style={{display: "flex", height: "100vh"}}>
-            {/* sidebar gauche*/}
+        <div style={{ display: "flex", height: "100vh", backgroundColor: "#0b0f19", color: "#f8fafc", overflow: "hidden" }}>
+            {/* Sidebar */}
             <Sidebar isOpen={isSidebarOpen} profileId={profileId} allPrices={allPrices} />
 
-            {/* main content */}
-            <main style={{flexGrow: 1, padding: "1rem"}}>
-                {/* header */}
-                <header style={{display: "flex", justifyContent: "space-between", alignItems: "center"}}>
-                    {/* bloc de gauche */}
-                    <div
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "10px"
-                        }}
-                    >
-                        {/* bouton pour dérouler le menu */}
+            {/* Main content area */}
+            <div style={{ flexGrow: 1, display: "flex", flexDirection: "column", height: "100vh", overflowY: "auto" }}>
+                {/* Header */}
+                <header style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "16px 24px",
+                    backgroundColor: "#131b2e",
+                    borderBottom: "1px solid #1e293b",
+                    boxShadow: "0 2px 10px rgba(0,0,0,0.3)"
+                }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                         <button
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                            style={{ padding: "8px 12px", cursor: "pointer" }}
+                            style={{
+                                padding: "8px",
+                                backgroundColor: "#1a233d",
+                                color: "#38bdf8",
+                                border: "1px solid #2a3a5e",
+                                borderRadius: "8px",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center"
+                            }}
+                            title="Basculer la barre latérale"
                         >
-                            {isSidebarOpen ? '<' : '☰'}
+                            {isSidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
                         </button>
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            padding: '10px 20px',
-                            backdropFilter: 'blur(10px)'
-                        }}>
-                            <h2><i>InvestSimulator</i></h2>
+                        <div
+                            onClick={() => navigate("/dashboard")}
+                            style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "10px" }}
+                        >
+                            <span style={{ fontWeight: "700", fontSize: "18px", letterSpacing: "0.02em", color: "#f8fafc" }}>
+                                Invest<span style={{ color: "#2962ff" }}>Simulator</span>
+                            </span>
+                            <span style={{ fontSize: "11px", backgroundColor: "rgba(41, 98, 255, 0.2)", color: "#38bdf8", padding: "2px 8px", borderRadius: "20px", fontWeight: "600" }}>PRO</span>
                         </div>
                     </div>
 
-                    {/* bloc de droite */}
-                    <div style={{textAlign: "right"}}>
-                        <div><strong>Nom: </strong>
-                            <span onClick={() => setIsProfileInfoOpen(true)} style={{ cursor: 'pointer', textDecoration: 'underline' }}>
-                                {profileName}
-                            </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
+                        <div style={{ textAlign: "right", display: "flex", gap: "20px", alignItems: "center" }}>
+                            <div>
+                                <div style={{ fontSize: "11px", color: "#94a3b8", textTransform: "uppercase" }}>Profil</div>
+                                <span
+                                    onClick={() => setIsProfileInfoOpen(true)}
+                                    style={{ cursor: 'pointer', fontWeight: "600", color: "#38bdf8", fontSize: "14px" }}
+                                    title="Voir les détails du profil"
+                                >
+                                    {profileName}
+                                </span>
+                            </div>
+                            <div>
+                                <div style={{ fontSize: "11px", color: "#94a3b8", textTransform: "uppercase" }}>Valeur Totale</div>
+                                <span className="mono" style={{ fontWeight: "700", fontSize: "14px", color: "#00c853" }}>
+                                    ${totalWorth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                            </div>
+                            <div>
+                                <div style={{ fontSize: "11px", color: "#94a3b8", textTransform: "uppercase" }}>Liquidités</div>
+                                <span className="mono" style={{ fontWeight: "600", fontSize: "14px", color: "#f8fafc" }}>
+                                    ${usdQuantity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                            </div>
                         </div>
-                        <div><strong>Valeur totale:</strong> ${totalWorth.toFixed(2)}</div>
-                        <div><strong>USD disponible pour trade:</strong> ${usdQuantity.toFixed(2)}</div>
+
                         <button
                             onClick={() => navigate("/")}
                             style={{
-                                marginTop: "0.5rem",
-                                padding: '8px 15px',
-                                backgroundColor: '#e0e0e0',
-                                color: '#333',
-                                border: 'none',
+                                padding: '8px 14px',
+                                backgroundColor: '#1a233d',
+                                color: '#94a3b8',
+                                border: '1px solid #2a3a5e',
                                 borderRadius: '8px',
                                 cursor: 'pointer',
-                                fontSize: '14px',
-                                fontWeight: 'bold',
-                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                        }}>
+                                fontSize: '13px',
+                                fontWeight: '600',
+                                transition: 'all 0.2s'
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.backgroundColor = "#2a3a5e"; e.currentTarget.style.color = "#f8fafc"; }}
+                            onMouseLeave={e => { e.currentTarget.style.backgroundColor = "#1a233d"; e.currentTarget.style.color = "#94a3b8"; }}
+                        >
                             Changer de compte
                         </button>
                     </div>
                 </header>
 
-                <Outlet context={{profileData: profile, refreshProfile: refreshProfile, allPrices: allPrices}} />
-            </main>
+                <main style={{ flexGrow: 1, padding: "24px", overflowY: "auto" }}>
+                    <Outlet context={{ profileData: profile, refreshProfile: refreshProfile, allPrices: allPrices }} />
+                </main>
+            </div>
 
-            {/* rendu conditionnel : fenêtre info profil */}
+            {/* Profile Info Modal */}
             {isProfileInfoOpen && (
-                <div className="profile-info-overlay"
-                    // fond sombre prend tout l'écran
-                    style={{
-                        position: 'fixed',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        backgroundColor: 'rgba(0, 0, 0, 0.5)', // fond semi-transparent
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        zIndex: 1000
-                    }}
-                    onClick={() => setIsProfileInfoOpen(false)}
-                >
-                    <div className="profile-info"
-                        style={{
-                            backgroundColor: 'white',
-                            padding: '25px',
-                            borderRadius: '8px',
-                            width: '350px',
-                            boxShadow: '0 5px 15px rgba(0, 0, 0, 0.3)',
-                            textAlign: 'center',
-                            // empêche la fermeture quand on clique sur le contenu de la modale
-                            onClickCapture: (e) => e.stopPropagation()
-                        }}
-                    >
-                        <h3>Infos du Profil</h3>
-                        <p>ID : {profileId}</p>
-                        <p>Nom : {profileName || "N/A"}</p>
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+                    backgroundColor: 'rgba(0, 0, 0, 0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100
+                }} onClick={() => setIsProfileInfoOpen(false)}>
+                    <div style={{
+                        backgroundColor: '#131b2e', border: '1px solid #1e293b', padding: '30px', borderRadius: '16px', width: '380px',
+                        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)'
+                    }} onClick={e => e.stopPropagation()}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                            <h3 style={{ margin: 0, fontSize: '18px', color: '#f8fafc' }}>Informations du Profil</h3>
+                            <button onClick={() => setIsProfileInfoOpen(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px", color: "#cbd5e1" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", backgroundColor: "#1a233d", padding: "10px 14px", borderRadius: "8px" }}>
+                                <span style={{ color: "#94a3b8" }}>ID du compte :</span>
+                                <span className="mono" style={{ fontWeight: "600" }}>{profileId}</span>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", backgroundColor: "#1a233d", padding: "10px 14px", borderRadius: "8px" }}>
+                                <span style={{ color: "#94a3b8" }}>Nom :</span>
+                                <span style={{ fontWeight: "600", color: "#38bdf8" }}>{profileName || "N/A"}</span>
+                            </div>
+                        </div>
 
-                        <div className="profile-info-buttons" style={{display: 'flex', justifyContent: 'center', marginTop: '25px', gap:'12px'}}>
+                        <div style={{ display: 'flex', gap: '12px' }}>
                             <button
                                 style={{
-                                    flex: '1',
-                                    padding: '12px 20px',
+                                    flex: '1', padding: '12px', backgroundColor: '#2962ff', color: 'white',
+                                    border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer'
                                 }}
-                                onClick={() => setIsProfileEditOpen(true)}
+                                onClick={() => { setIsProfileInfoOpen(false); setNewProfileName(profileName); setIsProfileEditOpen(true); }}
                             >
                                 Modifier le nom
                             </button>
                             <button
                                 onClick={() => setIsProfileInfoOpen(false)}
                                 style={{
-                                    flex: '1',
-                                    padding: '12px 20px',
+                                    flex: '1', padding: '12px', backgroundColor: '#1a233d', color: '#94a3b8',
+                                    border: '1px solid #2a3a5e', borderRadius: '8px', fontWeight: '600', cursor: 'pointer'
                                 }}>
                                 Fermer
                             </button>
@@ -222,60 +226,45 @@ function Dashboard({ profileId, onChangeProfile }) {
                 </div>
             )}
 
-            {/* rendu conditionnel :  fenêtre modif nom profil */}
+            {/* Profile Edit Modal */}
             {isProfileEditOpen && (
-                <div className="profile-edit-overlay"
-                     style={{
-                         position: 'fixed',
-                         top: 0,
-                         left: 0,
-                         width: '100%',
-                         height: '100%',
-                         backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                         display: 'flex',
-                         justifyContent: 'center',
-                         alignItems: 'center',
-                         zIndex: 1001 // zIndex légèrement supérieur si les deux fenetres sont ouvertes
-                     }}
-                >
-                    <div className="profile-edit"
-                         style={{
-                             backgroundColor: 'white',
-                             padding: '25px',
-                             borderRadius: '8px',
-                             width: '350px',
-                             boxShadow: '0 5px 15px rgba(0, 0, 0, 0.3)',
-                             onClickCapture: (e) => e.stopPropagation()
-                         }}
-                    >
-                        <div className="top-profile-edit" style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            marginBottom: '15px'
-                        }}>
-                            <h3 style={{textAlign: 'left', marginTop: '15px'}}>Modifier le nom du profil</h3>
-                            <div style={{textAlign: 'right'}}>
-                                <button onClick={() => setIsProfileEditOpen(false)}>X</button>
-                            </div>
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+                    backgroundColor: 'rgba(0, 0, 0, 0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1200
+                }}>
+                    <div style={{
+                        backgroundColor: '#131b2e', border: '1px solid #1e293b', padding: '30px', borderRadius: '16px', width: '380px',
+                        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)'
+                    }} onClick={e => e.stopPropagation()}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                            <h3 style={{ margin: 0, fontSize: '18px', color: '#f8fafc' }}>Modifier le nom du profil</h3>
+                            <button onClick={() => setIsProfileEditOpen(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
                         </div>
-                        <p>Nom actuel : {profileName || "N/A"}</p>
-                        <form onSubmit={handleNameChangeSubmit} style={{display: 'flex', alignItems: 'center', marginTop: '15px'}}>
-                            <input
-                                type="text"
-                                placeholder="Nouveau nom du profil"
-                                value={newProfileName}
-                                onChange={(e) => setNewProfileName(e.target.value)}
-                                style={{
-                                    padding: '8px',
-                                    flexGrow: 1,
-                                    onClickCapture: (e) => e.stopPropagation()
-                                }}
-                            />
-                            <button
-                                type="submit"
-                                style={{marginLeft: "10px", padding: '8px 15px'}}
-                            >Enregistrer</button>
+                        <form onSubmit={handleNameChangeSubmit}>
+                            <div style={{ marginBottom: "20px" }}>
+                                <label style={{ display: "block", fontSize: "13px", color: "#94a3b8", marginBottom: "8px" }}>Nouveau nom :</label>
+                                <input
+                                    type="text"
+                                    value={newProfileName}
+                                    onChange={(e) => setNewProfileName(e.target.value)}
+                                    style={{ width: '100%', padding: '12px 14px', boxSizing: 'border-box', backgroundColor: '#1a233d', border: '1px solid #2a3a5e', borderRadius: '8px', color: '#f8fafc', fontSize: '14px' }}
+                                />
+                            </div>
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                                <button
+                                    type="submit"
+                                    style={{ flex: 1, padding: '12px', backgroundColor: '#00c853', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}
+                                >
+                                    Enregistrer
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsProfileEditOpen(false)}
+                                    style={{ flex: 1, padding: '12px', backgroundColor: '#1a233d', color: '#94a3b8', border: '1px solid #2a3a5e', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}
+                                >
+                                    Annuler
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>

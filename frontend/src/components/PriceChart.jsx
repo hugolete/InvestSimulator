@@ -1,21 +1,19 @@
 import React from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
-const PriceChart = ({ data, color = "#8884d8", period }) => {
+const PriceChart = ({ data, color = "#2962ff", period }) => {
     return (
-        <div style={{ width: '100%', height: 300 }}>
+        <div style={{ width: '100%', height: 360 }}>
             <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                <LineChart data={data} margin={{ top: 10, right: 30, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" />
 
                     <XAxis
                         dataKey="timestamp"
-                        tick={{ fontSize: 12, fill: '#999' }}
+                        tick={{ fontSize: 11, fill: '#64748b' }}
                         tickLine={false}
-                        axisLine={false}
+                        axisLine={{ stroke: '#1e293b' }}
                         minTickGap={60}
-
-                        // tickFormatter pour transformer le timestamp en texte lisible sur l'axe
                         tickFormatter={(time) => {
                             const date = new Date(time);
                             return period === "1h" || period === "1d"
@@ -27,40 +25,36 @@ const PriceChart = ({ data, color = "#8884d8", period }) => {
                     <YAxis
                         orientation="right"
                         domain={['auto', 'auto']}
-                        tick={{ fontSize: 11, fill: '#999' }}
+                        tick={{ fontSize: 11, fill: '#64748b' }}
                         axisLine={false}
                         tickLine={false}
                         tickFormatter={(value) => {
-                            // formatage prix
                             if (value >= 1000) {
                                 return `$${(value / 1000).toFixed(1)}k`;
                             }
-                            return `$${value.toFixed(0)}`;
+                            return `$${value.toFixed(2)}`;
                         }}
-                        width={45}
+                        width={65}
                     />
 
                     <Tooltip
                         contentStyle={{
                             borderRadius: '10px',
-                            border: 'none',
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                            backgroundColor: '#fff'
+                            border: '1px solid #2a3a5e',
+                            boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                            backgroundColor: '#131b2e',
+                            color: '#f8fafc',
+                            fontSize: '13px'
                         }}
-                        /*labelFormatter={(label, payload) => {
-                            if (payload && payload.length > 0) {
-                                return payload[0].payload.fullDate;
-                            }
-                            return label;
-                        }}*/
+                        labelStyle={{ color: '#94a3b8', marginBottom: '4px' }}
+                        itemStyle={{ color: '#f8fafc', fontWeight: '600' }}
                         labelFormatter={(label) => {
                             return new Date(label).toLocaleString('fr-FR', {
                                 day: '2-digit',
                                 month: '2-digit',
                                 year: 'numeric',
                                 hour: '2-digit',
-                                minute: '2-digit',
-                                second: '2-digit'
+                                minute: '2-digit'
                             });
                         }}
                         formatter={(value) => [`$${parseFloat(value).toFixed(2)}`, "Prix"]}
@@ -70,9 +64,9 @@ const PriceChart = ({ data, color = "#8884d8", period }) => {
                         type="monotone"
                         dataKey="price"
                         stroke={color}
-                        strokeWidth={3}
+                        strokeWidth={2.5}
                         dot={false}
-                        activeDot={{ r: 6, strokeWidth: 0 }}
+                        activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2, fill: color }}
                     />
                 </LineChart>
             </ResponsiveContainer>

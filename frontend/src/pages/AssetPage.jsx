@@ -1,18 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useOutletContext } from 'react-router-dom';
-import {buyAsset, fetchAssetData, fetchChartData, sellAsset} from "../api/assets";
+import { buyAsset, fetchAssetData, fetchChartData, sellAsset } from "../api/assets";
 import PriceChart from "../components/PriceChart";
-import {getProfileHistory} from "../api/profiles";
+import { getProfileHistory } from "../api/profiles";
+import { TrendingUp, TrendingDown, DollarSign, ArrowUpRight, ArrowDownRight, Info, Wallet, ShieldCheck, X } from "lucide-react";
 
-export default function AssetPage({profileId}) {
+export default function AssetPage({ profileId }) {
     const { symbol } = useParams();
-
-    //récup données profil
     const { profileData, refreshProfile, allPrices } = useOutletContext();
 
     const [assetDetails, setAssetDetails] = useState(null);
     const [assetPriceHistory, setAssetPriceHistory] = useState(null);
-    const [assetPercentages, setAssetPercentages] = useState(null);
     const [chartData, setChartData] = useState(null);
     const [isBuyMenuOpen, setIsBuyMenuOpen] = useState(false);
     const [isSellMenuOpen, setIsSellMenuOpen] = useState(false);
@@ -21,37 +19,24 @@ export default function AssetPage({profileId}) {
     const [isAmountFiatInvalid, setIsAmountFiatInvalid] = useState(false);
     const [isAmountAssetInvalid, setIsAmountAssetInvalid] = useState(false);
     const [amountAsset, setAmountAsset] = useState(0);
-    const [period, setPeriod] = useState("1h");
+    const [period, setPeriod] = useState("1d");
     const [userHistory, setUserHistory] = useState([]);
-    const [comment, setComment] = useState("MANUAL")
+    const [comment] = useState("MANUAL");
 
-    //récup des données de l'asset
     useEffect(() => {
-        if (!symbol) return
+        setOrderSymbol(symbol);
+    }, [symbol]);
 
-        // Reset immédiat
-        setAssetDetails(null)
-        setAssetPriceHistory(null)
+    useEffect(() => {
+        if (!symbol) return;
+        setAssetDetails(null);
+        setAssetPriceHistory(null);
 
         fetchAssetData(symbol).then(assetData => {
             console.log("AssetData : ",assetData)
             setAssetDetails(assetData.asset);
             setAssetPriceHistory(assetData.history);
-            setAssetPercentages(assetData.percentages);
-
-            // Préparer les données pour le graphique
-            const historyObject = assetData.history?.history || {};
-            const formattedChartData = Object.entries(historyObject).map(([period, price]) => ({
-                date: period,
-                price: price,
-            }));
-            //setChartData(formattedChartData);
-
-            //récup prix d'hier et pourcentage
-            const yesterdayPrice = historyObject["1d"]
-            const currentPrice = assetDetails?.price ?? allPrices[symbol] ?? 0
-            const yesterdayDiff = (currentPrice - yesterdayPrice).toFixed(2);
-        })
+        });
     }, [symbol]);
 
     //Récup des données pour graphique
@@ -84,22 +69,12 @@ export default function AssetPage({profileId}) {
                 setUserHistory(history);
             })
             .catch(err => {
-                console.error("Erreur lors du chargement du graphique:", err);
+                console.error("Erreur lors du chargement de l'historique:", err);
             });
     }, [profileId, symbol]);
 
-    /*récup usd de l'user
-    const usdAsset = profileData.find(item => item.symbol === "USD")
-    //console.log("UsdAsset : ",usdAsset)
-    const usdQuantity = usdAsset.quantity
-    //console.log("UsdQuantity : ",usdQuantity)
-
-    //récup asset de l'user
-    const asset = profileData.find(item => item.symbol === symbol)*/
-    //console.log("Asset de l'user : ",asset, " pour le symbole : ",symbol)
-
     useEffect(() => {
-        if (!symbol) return
+        if (!symbol) return;
         const interval = setInterval(() => {
             fetchAssetData(symbol).then(data => {
                 setAssetDetails(data.asset)
@@ -108,20 +83,18 @@ export default function AssetPage({profileId}) {
         return () => clearInterval(interval)
     }, [symbol])
 
-    const usdQuantity = profileData.assets?.find(a => a.symbol === "USD")?.quantity ?? 0
-    const asset = profileData.assets?.find(a => a.symbol === symbol)
+    const usdQuantity = profileData.assets?.find(a => a.symbol === "USD")?.quantity ?? 0;
+    const asset = profileData.assets?.find(a => a.symbol === symbol);
 
     let assetQuantity = 0;
     let usdWorth = 0;
     if (asset && asset.quantity) {
         assetQuantity = asset.quantity;
-        usdWorth = (assetQuantity * assetDetails?.price).toFixed(2);
+        usdWorth = (assetQuantity * (assetDetails?.price || allPrices[symbol] || 0)).toFixed(2);
     }
 
     const handleBuySubmit = (e) => {
-        e.preventDefault()
-        console.log("Form d'achat submit")
-
+        e.preventDefault();
         const amount = parseFloat(amountFiat);
         console.log("Amount fiat:", amountFiat, " parsed: ",amount)
 
@@ -143,23 +116,17 @@ export default function AssetPage({profileId}) {
 
             const boughtQuantity = response.amount;
             const symbol = response.symbol || orderSymbol;
-            const formattedQuantity = boughtQuantity.toFixed(5);
+            alert(`Achat réussi ! Vous avez acheté ${boughtQuantity.toFixed(5)} ${symbol} pour $${amount.toFixed(2)}.`);
+            setIsBuyMenuOpen(false);
 
-            alert(`Achat réussi ! Vous avez acheté ${formattedQuantity} ${symbol} pour $${amount.toFixed(2)}.`);
-
-            if (refreshProfile) {
-                refreshProfile();
-            }
+            if (refreshProfile) refreshProfile();
         }).catch(error => {
-            console.error("Erreur lors de l'achat :", error);
-            alert(`Échec de la transaction: ${error.message}`);alert(`Échec de la transaction: ${error.message}`);
+            alert(`Échec de la transaction: ${error.message}`);
         });
-    }
+    };
 
     const handleSellSubmit = (e) => {
         e.preventDefault()
-        console.log("Form de vente submit")
-
         const amount = parseFloat(amountAsset)
         console.log("Amount asset:", amountAsset, " parsed: ",amount)
 
@@ -171,35 +138,25 @@ export default function AssetPage({profileId}) {
 
         const preciseAssetQuantity = parseFloat(assetQuantity.toFixed(8));
         if (amount > preciseAssetQuantity) {
-            alert("Transaction annulée : Fonds insuffisants. Vous avez seulement "+symbol+" "+ assetQuantity.toFixed(5) + " disponible pour la vente.");
-            console.error("Tentative de vente excédentaire:", amount, " vs ", preciseAssetQuantity);
+            alert(`Transaction annulée : Fonds insuffisants. Vous avez seulement ${symbol} ${assetQuantity.toFixed(5)} disponible.`);
             return;
         }
 
-        sellAsset(profileId,orderSymbol,amountAsset,comment).then(response => {
-            console.log("Vente réussie :", response);
-
+        sellAsset(profileId, orderSymbol, amountAsset, comment).then(response => {
             const soldQuantity = response.amount;
-            const symbol = response.symbol || orderSymbol;
-            const formattedQuantity = soldQuantity.toFixed(5);
-            const usdReceived_string = response.total_price;
-            const usdReceived = parseFloat(usdReceived_string).toFixed(2);
-
-            alert(`Vente réussie ! Vous avez vendu ${formattedQuantity} ${symbol} pour $${usdReceived}.`);
-
-            if (refreshProfile) {
-                refreshProfile();
-            }
+            const sym = response.symbol || orderSymbol;
+            const usdReceived = parseFloat(response.total_price).toFixed(2);
+            alert(`Vente réussie ! Vous avez vendu ${soldQuantity.toFixed(5)} ${sym} pour $${usdReceived}.`);
+            setIsSellMenuOpen(false);
+            if (refreshProfile) refreshProfile();
         }).catch(error => {
-            console.error("Erreur lors de la vente :", error);
+            alert(`Échec de la vente: ${error.message}`);
         });
-    }
+    };
 
     const handleSetMax = () => {
-        // arrondir usdquantity
         const factor = Math.pow(10, 8);
         const maxAmount = Math.floor(usdQuantity * factor) / factor;
-
         setAmountFiat(maxAmount);
         setIsAmountFiatInvalid(false);
     };
@@ -207,14 +164,12 @@ export default function AssetPage({profileId}) {
     const handleSetMaxAsset = () => {
         const factor = Math.pow(10, 8);
         const maxAssetAmount = Math.floor(assetQuantity * factor) / factor;
-
         setAmountAsset(maxAssetAmount);
         setIsAmountAssetInvalid(false);
-    }
+    };
 
-    const calculatePnL = (history, symbol, currentPrice) => {
-        const assetHistory = history.filter(t => t.symbol === symbol);
-
+    const calculatePnL = (history, sym, currentPrice) => {
+        const assetHistory = history.filter(t => t.symbol === sym);
         let openCost = 0;
         let openQty = 0;
         let realizedPnL = 0;
@@ -224,383 +179,354 @@ export default function AssetPage({profileId}) {
                 openCost += (t.quantity * t.price);
                 openQty += t.quantity;
             } else if (t.side === 'SELL') {
-                const currentPRU = openCost / openQty;
-                // Profit réalisé = (prix de vente - PRU) * quantité vendue
-                realizedPnL += (t.price - currentPRU) * t.quantity;
-
-                // ajuste le stock restant proportionnellement
-                openCost -= (t.quantity * currentPRU);
-                openQty -= t.quantity;
+                if (openQty > 0) {
+                    const currentPRU = openCost / openQty;
+                    realizedPnL += (t.price - currentPRU) * t.quantity;
+                    openCost -= (t.quantity * currentPRU);
+                    openQty -= t.quantity;
+                }
             }
         });
 
         const finalPRU = openQty > 0.00000001 ? openCost / openQty : 0;
-        const unrealizedPnL = openQty > 0.00000001 ? (currentPrice - finalPRU) * openQty: 0;
-
+        const unrealizedPnL = openQty > 0.00000001 ? (currentPrice - finalPRU) * openQty : 0;
         return { unrealizedPnL, realizedPnL, finalPRU };
     };
 
-    const { unrealizedPnL, realizedPnL, finalPRU } = calculatePnL(
-        userHistory,
-        symbol,
-        assetDetails?.price || 0.1
-    );
+    const currentPrice = assetDetails?.price ?? allPrices[symbol] ?? 0;
+    const { unrealizedPnL, realizedPnL, finalPRU } = calculatePnL(userHistory, symbol, currentPrice);
 
-    const currentPrice = assetDetails?.price ?? allPrices[symbol] ?? 0
-    console.log("assetDetails:", assetDetails)
-    console.log("assetDetails.price:", assetDetails?.price)
-    console.log("currentPrice:", currentPrice)
-    const yesterdayPrice = assetPriceHistory?.history?.["1d"] || 0
-    const yesterdayDiff = yesterdayPrice > 0 ? (currentPrice - yesterdayPrice).toFixed(2) : "—"
-    const yesterdayPct = yesterdayPrice > 0 ? ((yesterdayDiff / yesterdayPrice) * 100).toFixed(2) : "—"
+    const historyObject = assetPriceHistory?.history || {};
+    const yesterdayPrice = historyObject["1d"] || currentPrice;
+    const yesterdayDiff = currentPrice - yesterdayPrice;
+    const yesterdayPct = yesterdayPrice > 0 ? ((yesterdayDiff / yesterdayPrice) * 100).toFixed(2) : "0.00";
+    const isPositive = parseFloat(yesterdayPct) >= 0;
 
-    if (!assetDetails || !assetPriceHistory) {
-        return <div className="loading">Chargement des données...</div>;
-    }
+    const periods = [
+        { label: "1H", value: "1h" },
+        { label: "12H", value: "12h" },
+        { label: "1J", value: "1d" },
+        { label: "7J", value: "1w" },
+        { label: "1M", value: "1m" },
+        { label: "6M", value: "6m" },
+        { label: "1A", value: "1y" },
+        { label: "5A", value: "5y" }
+    ];
 
-    if (!profileData) {
-        return <div>Chargement des détails du profil...</div>;
-    }
-
-    if (!assetDetails && symbol) {
-        return <p>Chargement des données de {symbol}...</p>;
+    if (!assetDetails) {
+        return <div style={{ padding: "60px", textAlign: "center", color: "#94a3b8" }}>Chargement des données du marché...</div>;
     }
 
     return (
-        <div
-            className="asset-page-container"
-            style={{
-                display: 'flex',
-                gap: '20px',
-                padding: '20px',
-                width: '100%',
-                minHeight: '80vh'
-            }}
-        >
-            {/* Graphique */}
-            <div
-                className="chart-section"
-                style={{
-                    flex: '3', //75% de la largeur
-                    backgroundColor: '#fff',
-                    padding: '20px',
-                    borderRadius: '8px',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }}
-            >
-                <h2>{assetDetails?.name} ({symbol}) - Graphique ({period})</h2>
-                <div className="chart-container" style={{ marginTop: '20px', background: '#f9f9f9', padding: '20px', borderRadius: '15px' }}>
+        <div style={{ display: 'flex', gap: '24px', padding: '10px 20px', width: '100%', boxSizing: 'border-box' }}>
+            {/* Left: Chart & Details */}
+            <div style={{ flex: '3', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                {/* Asset Header Card */}
+                <div style={{
+                    backgroundColor: '#131b2e',
+                    border: '1px solid #1e293b',
+                    borderRadius: '16px',
+                    padding: '24px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                }}>
+                    <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
+                            <h1 style={{ margin: 0, fontSize: '24px', fontWeight: '700', color: '#f8fafc' }}>
+                                {assetDetails?.name}
+                            </h1>
+                            <span style={{ backgroundColor: '#1a233d', color: '#38bdf8', padding: '4px 10px', borderRadius: '6px', fontSize: '13px', fontWeight: '600' }}>
+                                {symbol}
+                            </span>
+                        </div>
+                        <div style={{ fontSize: '13px', color: '#94a3b8' }}>
+                            Type : <span style={{ color: '#cbd5e1', textTransform: 'uppercase' }}>{assetDetails?.type}</span> | Secteur : <span style={{ color: '#cbd5e1' }}>{assetDetails?.sector || 'Général'}</span>
+                        </div>
+                    </div>
+
+                    <div style={{ textAlign: 'right' }}>
+                        <div className="mono" style={{ fontSize: '28px', fontWeight: '700', color: '#f8fafc' }}>
+                            ${currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'flex-end',
+                            gap: '4px',
+                            color: isPositive ? '#00c853' : '#ff3d00',
+                            fontWeight: '600',
+                            fontSize: '14px',
+                            marginTop: '4px'
+                        }}>
+                            {isPositive ? <ArrowUpRight size={18} /> : <ArrowDownRight size={18} />}
+                            <span className="mono">{isPositive ? "+" : ""}${yesterdayDiff.toFixed(2)} ({isPositive ? "+" : ""}{yesterdayPct}%)</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Chart Box */}
+                <div style={{
+                    backgroundColor: '#131b2e',
+                    border: '1px solid #1e293b',
+                    borderRadius: '16px',
+                    padding: '24px'
+                }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                        <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#f8fafc' }}>Évolution du Cours</h3>
+                        {/* Period buttons */}
+                        <div style={{ display: 'flex', gap: '6px', backgroundColor: '#1a233d', padding: '4px', borderRadius: '10px', border: '1px solid #2a3a5e' }}>
+                            {periods.map(p => (
+                                <button
+                                    key={p.value}
+                                    onClick={() => setPeriod(p.value)}
+                                    style={{
+                                        padding: '6px 12px',
+                                        backgroundColor: period === p.value ? '#2962ff' : 'transparent',
+                                        color: period === p.value ? '#fff' : '#94a3b8',
+                                        border: 'none',
+                                        borderRadius: '8px',
+                                        fontSize: '12px',
+                                        fontWeight: '600',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    {p.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                     <PriceChart
                         data={chartData}
-                        color={yesterdayPct >= 0 ? "#4caf50" : "#f44336"} // Vert si positif, rouge si négatif
+                        color={isPositive ? "#00c853" : "#ff3d00"}
                         period={period}
                     />
                 </div>
-                <div
-                    className="chart-buttons"
-                    style={{ marginTop: '15px', display: 'flex', gap: '10px' }}
-                >
-                    <button onClick={() => setPeriod("1h")}>1H</button>
-                    <button onClick={() => setPeriod("12h")}>12H</button>
-                    <button onClick={() => setPeriod("1d")}>1D</button>
-                    <button onClick={() => setPeriod("1w")}>7D</button>
-                    <button onClick={() => setPeriod("1m")}>1MO</button>
-                    <button onClick={() => setPeriod("6m")}>6MO</button>
-                    <button onClick={() => setPeriod("1y")}>1A</button>
-                    <button onClick={() => setPeriod("5y")}>5A</button>
-                </div>
             </div>
 
-            {/* Partie droite */}
-            <div
-                className="trading-info-section"
-                style={{
-                    flex: '1', // Prend environ 25% de la largeur restante
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '20px'
-                }}
-            >
-                {/* Bloc trading */}
-                <div
-                    className="trading-actions"
-                    style={{
-                        backgroundColor: '#fff',
-                        padding: '20px',
-                        borderRadius: '8px',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                    }}
-                >
-                    <h3>Trading</h3>
-                    <p style={{ fontWeight: 'bold', fontSize: '1.5rem', marginBottom: '15px' }}>
-                        Prix Actuel : ${currentPrice.toFixed(2) || 'N/A'}
-                    </p>
+            {/* Right: Trading & User Position Panel */}
+            <div style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                {/* Action Card */}
+                <div style={{
+                    backgroundColor: '#131b2e',
+                    border: '1px solid #1e293b',
+                    borderRadius: '16px',
+                    padding: '24px'
+                }}>
+                    <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: '600', color: '#f8fafc' }}>Passer un Ordre</h3>
 
-                    {/* pourcentage par rapport au jour précédent */}
-                    <p
-                        style={{
-                            marginBottom: '15px',
-                            color: yesterdayPct>=0 ? "green" : "red",
-                            fontWeight: "bold",
-                        }}
-                    >
-                        {yesterdayPct>=0 ? "+" : ""}
-                        {yesterdayDiff.toLocaleString()} $ ({yesterdayPct}%)
-                    </p>
-
-                    {/* Boutons */}
-                    <div style={{ display: 'flex', gap: '10px' }}>
+                    <div style={{ display: 'flex', gap: '12px' }}>
                         <button
-                            style={{ flex: 1, padding: '10px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                            style={{
+                                flex: 1, padding: '12px', backgroundColor: '#00c853', color: 'white',
+                                border: 'none', borderRadius: '10px', fontWeight: '600', fontSize: '14px', cursor: 'pointer',
+                                boxShadow: '0 4px 12px rgba(0, 200, 83, 0.3)'
+                            }}
                             onClick={() => setIsBuyMenuOpen(true)}
                         >
                             Acheter
                         </button>
                         <button
-                            style={{ flex: 1, padding: '10px', backgroundColor: '#F44336', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                            style={{
+                                flex: 1, padding: '12px', backgroundColor: '#ff3d00', color: 'white',
+                                border: 'none', borderRadius: '10px', fontWeight: '600', fontSize: '14px', cursor: 'pointer',
+                                boxShadow: '0 4px 12px rgba(255, 61, 0, 0.3)'
+                            }}
                             onClick={() => setIsSellMenuOpen(true)}
                         >
                             Vendre
                         </button>
                     </div>
+                </div>
 
-                    {isBuyMenuOpen && (
-                        <div className="buy-menu-overlay"
-                             style={{
-                                 position: 'fixed',
-                                 top: 0,
-                                 left: 0,
-                                 width: '100%',
-                                 height: '100%',
-                                 backgroundColor: 'rgba(0, 0, 0, 0.5)', // fond semi-transparent
-                                 display: 'flex',
-                                 justifyContent: 'center',
-                                 alignItems: 'center',
-                                 zIndex: 1000
-                             }}
-                        >
-                            <div className="buy-info"
-                                 style={{
-                                     backgroundColor: 'white',
-                                     padding: '25px',
-                                     borderRadius: '8px',
-                                     width: '350px',
-                                     boxShadow: '0 5px 15px rgba(0, 0, 0, 0.3)',
-                                     textAlign: 'center',
-                                 }}
-                            >
-                                <h2>Ordre d'achat</h2>
+                {/* User Position Card */}
+                <div style={{
+                    backgroundColor: '#131b2e',
+                    border: '1px solid #1e293b',
+                    borderRadius: '16px',
+                    padding: '24px'
+                }}>
+                    <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: '600', color: '#f8fafc' }}>Votre Position</h3>
 
-                                <form onSubmit={handleBuySubmit}>
-                                    <div style={{ marginBottom: '15px', textAlign: 'left' }}>
-                                        <label htmlFor="buy-symbol" style={{ display: 'block', marginBottom: '5px' }}><h4>Actif: <strong>{orderSymbol}</strong></h4></label>
-                                    </div>
-                                    <div>
-                                        <label htmlFor="amount-fiat" style={{ display: 'block', marginBottom: '5px', textAlign:'left' }}>Montant en monnaie ($USD):</label>
-                                        <div style={{ marginBottom: '15px', textAlign: 'left', display:'flex', alignItems:'stretch' }}>
-                                            <input
-                                                type="number"
-                                                id="amount-fiat"
-                                                value={amountFiat}
-                                                onChange={(e) => {
-                                                    const newValue = e.target.value;
-                                                    const newNumericValue = parseFloat(newValue);
-
-                                                    setAmountFiat(newValue);
-
-                                                    const preciseUsdQuantity = parseFloat(usdQuantity.toFixed(8));
-
-                                                    if (Number.isFinite(newNumericValue) && newNumericValue > 0 && newNumericValue > preciseUsdQuantity) {
-                                                        setIsAmountFiatInvalid(true);
-                                                    } else {
-                                                        setIsAmountFiatInvalid(false);
-                                                    }
-                                                }}
-                                                max={usdQuantity}
-                                                style={{ width: '100%', padding: '8px', boxSizing: 'border-box', border: isAmountFiatInvalid ? '2px solid red' : '1px solid #ccc', flexGrow: 1 }}
-                                            />
-
-                                            <button
-                                                type="button"
-                                                onClick={handleSetMax}
-                                                style={{
-                                                    padding: '8px 12px',
-                                                    cursor: 'pointer',
-                                                    height: 'auto',
-                                                    whiteSpace: 'nowrap'
-                                                }}
-                                            >
-                                                Max
-                                            </button>
-
-                                            {/* message d'erreur */}
-                                            {isAmountFiatInvalid && (
-                                                <p style={{ color: 'red', fontSize: '0.9rem', marginTop: '5px' }}>
-                                                    Montant maximal dépassé. Solde disponible : ${usdQuantity.toFixed(2)}
-                                                </p>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="buy-menu-buttons" style={{display: 'flex', justifyContent: 'center', marginTop: '25px', gap:'12px'}}>
-                                        <button
-                                            type="submit"
-                                            style={{
-                                                flex: '1',
-                                                padding: '12px 20px',
-                                            }}
-                                        >
-                                            Acheter
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsBuyMenuOpen(false)}
-                                            style={{
-                                                flex: '1',
-                                                padding: '12px 20px',
-                                            }}>
-                                            Fermer
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '14px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #1e293b', paddingBottom: '10px' }}>
+                            <span style={{ color: '#94a3b8' }}>Quantité détenue:</span>
+                            <span className="mono" style={{ fontWeight: '600', color: '#f8fafc' }}>
+                                {Number(assetQuantity) < 0.00000001 ? "0.00" : Number(assetQuantity).toFixed(6)} {symbol}
+                            </span>
                         </div>
-                    )}
-                    {isSellMenuOpen && (
-                        <div className="sell-menu-overlay"
-                             style={{
-                                 position: 'fixed',
-                                 top: 0,
-                                 left: 0,
-                                 width: '100%',
-                                 height: '100%',
-                                 backgroundColor: 'rgba(0, 0, 0, 0.5)', // fond semi-transparent
-                                 display: 'flex',
-                                 justifyContent: 'center',
-                                 alignItems: 'center',
-                                 zIndex: 1000
-                             }}
-                        >
-                            <div className="sell-info"
-                                 style={{
-                                     backgroundColor: 'white',
-                                     padding: '25px',
-                                     borderRadius: '8px',
-                                     width: '350px',
-                                     boxShadow: '0 5px 15px rgba(0, 0, 0, 0.3)',
-                                     textAlign: 'center',
-                                 }}
-                            >
-                                <h2>Ordre de vente</h2>
-
-                                <form onSubmit={handleSellSubmit}>
-                                    <div style={{ marginBottom: '15px', textAlign: 'left' }}>
-                                        <label htmlFor="sell-symbol" style={{ display: 'block', marginBottom: '5px' }}><h4>Actif: <strong>{orderSymbol}</strong></h4></label>
-                                    </div>
-                                    <div>
-                                        <label htmlFor="amount-asset" style={{ display: 'block', marginBottom: '5px', textAlign:'left' }}>Nombre de l'asset à vendre ({orderSymbol}):</label>
-                                        <div style={{ marginBottom: '15px', textAlign: 'left', display:'flex', alignItems:'stretch' }}>
-                                            <input
-                                                type="number"
-                                                id="amount-asset"
-                                                value={amountAsset}
-                                                onChange={(e) => {
-                                                    const newValue = e.target.value;
-                                                    const newNumericValue = parseFloat(newValue);
-
-                                                    setAmountAsset(newValue);
-
-                                                    const preciseAssetQuantity = parseFloat(usdQuantity.toFixed(8));
-
-                                                    if (Number.isFinite(newNumericValue) && newNumericValue > 0 && newNumericValue > preciseAssetQuantity) {
-                                                        setIsAmountFiatInvalid(true);
-                                                    } else {
-                                                        setIsAmountFiatInvalid(false);
-                                                    }
-                                                }}
-                                                max={usdQuantity}
-                                                style={{ width: '100%', padding: '8px', boxSizing: 'border-box', border: isAmountFiatInvalid ? '2px solid red' : '1px solid #ccc', flexGrow: 1 }}
-                                            />
-
-                                            <button
-                                                type="button"
-                                                onClick={handleSetMaxAsset}
-                                                style={{
-                                                    padding: '8px 12px',
-                                                    cursor: 'pointer',
-                                                    height: 'auto',
-                                                    whiteSpace: 'nowrap'
-                                                }}
-                                            >
-                                                Max
-                                            </button>
-
-                                            {/* message d'erreur */}
-                                            {isAmountAssetInvalid && (
-                                                <p style={{ color: 'red', fontSize: '0.9rem', marginTop: '5px' }}>
-                                                    Montant maximal dépassé. Assets disponible : ${assetQuantity.toFixed(5)}
-                                                </p>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="sell-menu-buttons" style={{display: 'flex', justifyContent: 'center', marginTop: '25px', gap:'12px'}}>
-                                        <button
-                                            type="submit"
-                                            style={{
-                                                flex: '1',
-                                                padding: '12px 20px',
-                                            }}
-                                        >
-                                            Vendre
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsSellMenuOpen(false)}
-                                            style={{
-                                                flex: '1',
-                                                padding: '12px 20px',
-                                            }}>
-                                            Fermer
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #1e293b', paddingBottom: '10px' }}>
+                            <span style={{ color: '#94a3b8' }}>Valeur de marché:</span>
+                            <span className="mono" style={{ fontWeight: '600', color: '#38bdf8' }}>
+                                ${Number(usdWorth).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
                         </div>
-                    )}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #1e293b', paddingBottom: '10px' }}>
+                            <span style={{ color: '#94a3b8' }}>PRU moyen:</span>
+                            <span className="mono" style={{ fontWeight: '600', color: '#f8fafc' }}>
+                                ${Number(finalPRU).toFixed(2)}
+                            </span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #1e293b', paddingBottom: '10px' }}>
+                            <span style={{ color: '#94a3b8' }}>Plus-value latente:</span>
+                            <span className="mono" style={{ fontWeight: '600', color: unrealizedPnL >= 0 ? '#00c853' : '#ff3d00' }}>
+                                {unrealizedPnL >= 0 ? "+" : ""}${Number(unrealizedPnL).toFixed(2)}
+                            </span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: '#94a3b8' }}>Plus-value réalisée:</span>
+                            <span className="mono" style={{ fontWeight: '600', color: realizedPnL >= 0 ? '#00c853' : '#ff3d00' }}>
+                                {realizedPnL >= 0 ? "+" : ""}${Number(realizedPnL).toFixed(2)}
+                            </span>
+                        </div>
+                    </div>
                 </div>
-
-                {/* Infos sur l'actif */}
-                <div
-                    className="asset-details"
-                    style={{
-                        backgroundColor: '#fff',
-                        padding: '20px',
-                        borderRadius: '8px',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                    }}
-                >
-                    <h3>Informations sur l'actif</h3>
-                    <p><strong>Symbole:</strong> {assetDetails?.symbol}</p>
-                    <p><strong>Nom:</strong> {assetDetails?.name}</p>
-                    <p><strong>Type:</strong> {assetDetails?.type}</p>
-                </div>
-                <div
-                    className="asset-user-details"
-                    style={{
-                        backgroundColor: '#fff',
-                        padding: '20px',
-                        borderRadius: '8px',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                    }}
-                >
-                    <h3>Vous possédez:</h3>
-                    <p><strong>{Number(assetQuantity) < 0.00000001 ? "0" : Number(assetQuantity).toFixed(8)} {assetDetails?.symbol}</strong></p>
-                    <p><strong>Valeur : {Number(usdWorth).toFixed(2)} $</strong></p>
-                    <p><strong>Profit/perte latent : {Number(unrealizedPnL).toFixed(2)} $</strong></p>
-                    <p><strong>Profit/perte réalisé : {Number(realizedPnL).toFixed(2)} $</strong></p>
-                    <p><strong>Prix de revient unitaire : {Number(finalPRU).toFixed(2)} $</strong></p>
-                </div>
-
             </div>
+
+            {/* Buy Modal */}
+            {isBuyMenuOpen && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+                    backgroundColor: 'rgba(0, 0, 0, 0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1200
+                }}>
+                    <div style={{
+                        backgroundColor: '#131b2e', border: '1px solid #1e293b', padding: '30px', borderRadius: '16px', width: '400px',
+                        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)'
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                            <h3 style={{ margin: 0, fontSize: '18px', color: '#f8fafc' }}>Acheter {orderSymbol}</h3>
+                            <button onClick={() => setIsBuyMenuOpen(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
+                        </div>
+
+                        <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#1a233d', borderRadius: '8px', fontSize: '13px', color: '#94a3b8', display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Solde USD disponible :</span>
+                            <span className="mono" style={{ color: '#00c853', fontWeight: '600' }}>${usdQuantity.toFixed(2)}</span>
+                        </div>
+
+                        <form onSubmit={handleBuySubmit}>
+                            <div style={{ marginBottom: '20px' }}>
+                                <label style={{ display: 'block', fontSize: '13px', color: '#94a3b8', marginBottom: '8px' }}>Montant en USD ($) :</label>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value={amountFiat}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setAmountFiat(val);
+                                            setIsAmountFiatInvalid(parseFloat(val) > usdQuantity);
+                                        }}
+                                        style={{
+                                            flexGrow: 1, padding: '12px 14px', backgroundColor: '#1a233d',
+                                            border: isAmountFiatInvalid ? '1px solid #ff3d00' : '1px solid #2a3a5e',
+                                            borderRadius: '8px', color: '#f8fafc', fontSize: '15px'
+                                        }}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={handleSetMax}
+                                        style={{ padding: '0 16px', backgroundColor: '#2a3a5e', color: '#f8fafc', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}
+                                    >
+                                        Max
+                                    </button>
+                                </div>
+                                {isAmountFiatInvalid && (
+                                    <p style={{ color: '#ff3d00', fontSize: '12px', marginTop: '6px', margin: 0 }}>Montant supérieur au solde disponible.</p>
+                                )}
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                                <button
+                                    type="submit"
+                                    style={{ flex: 1, padding: '12px', backgroundColor: '#00c853', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}
+                                >
+                                    Confirmer l'achat
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsBuyMenuOpen(false)}
+                                    style={{ flex: 1, padding: '12px', backgroundColor: '#1a233d', color: '#94a3b8', border: '1px solid #2a3a5e', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}
+                                >
+                                    Annuler
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Sell Modal */}
+            {isSellMenuOpen && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+                    backgroundColor: 'rgba(0, 0, 0, 0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1200
+                }}>
+                    <div style={{
+                        backgroundColor: '#131b2e', border: '1px solid #1e293b', padding: '30px', borderRadius: '16px', width: '400px',
+                        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)'
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                            <h3 style={{ margin: 0, fontSize: '18px', color: '#f8fafc' }}>Vendre {orderSymbol}</h3>
+                            <button onClick={() => setIsSellMenuOpen(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
+                        </div>
+
+                        <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#1a233d', borderRadius: '8px', fontSize: '13px', color: '#94a3b8', display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Quantité disponible :</span>
+                            <span className="mono" style={{ color: '#38bdf8', fontWeight: '600' }}>{assetQuantity.toFixed(5)} {symbol}</span>
+                        </div>
+
+                        <form onSubmit={handleSellSubmit}>
+                            <div style={{ marginBottom: '20px' }}>
+                                <label style={{ display: 'block', fontSize: '13px', color: '#94a3b8', marginBottom: '8px' }}>Quantité à vendre :</label>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value={amountAsset}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setAmountAsset(val);
+                                            setIsAmountAssetInvalid(parseFloat(val) > assetQuantity);
+                                        }}
+                                        style={{
+                                            flexGrow: 1, padding: '12px 14px', backgroundColor: '#1a233d',
+                                            border: isAmountAssetInvalid ? '1px solid #ff3d00' : '1px solid #2a3a5e',
+                                            borderRadius: '8px', color: '#f8fafc', fontSize: '15px'
+                                        }}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={handleSetMaxAsset}
+                                        style={{ padding: '0 16px', backgroundColor: '#2a3a5e', color: '#f8fafc', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}
+                                    >
+                                        Max
+                                    </button>
+                                </div>
+                                {isAmountAssetInvalid && (
+                                    <p style={{ color: '#ff3d00', fontSize: '12px', marginTop: '6px', margin: 0 }}>Quantité supérieure à vos avoirs.</p>
+                                )}
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                                <button
+                                    type="submit"
+                                    style={{ flex: 1, padding: '12px', backgroundColor: '#ff3d00', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}
+                                >
+                                    Confirmer la vente
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsSellMenuOpen(false)}
+                                    style={{ flex: 1, padding: '12px', backgroundColor: '#1a233d', color: '#94a3b8', border: '1px solid #2a3a5e', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}
+                                >
+                                    Annuler
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
