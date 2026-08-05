@@ -60,15 +60,15 @@ export default function Home({ onSelectProfile }) {
                 </div>
 
                 <h1 style={{ fontSize: "24px", fontWeight: "700", marginBottom: "8px", color: "#f8fafc" }}>
-                    InvestSimulator Pro
+                    InvestSimulator
                 </h1>
                 <p style={{ color: "#94a3b8", fontSize: "14px", marginBottom: "32px" }}>
-                    Advanced simulated trading platform for stocks, ETFs, and crypto.
+                    Plateforme de simulation de trading et d'investissement pour les actions, ETFs et cryptomonnaies.
                 </p>
 
                 <div style={{ marginBottom: "20px", textAlign: "left" }}>
                     <label style={{ display: "block", fontSize: "13px", fontWeight: "500", color: "#94a3b8", marginBottom: "8px" }}>
-                        Sélectionner un profil de trading
+                        Sélectionner un profil
                     </label>
                     <select
                         disabled={disabled}
@@ -144,8 +144,8 @@ export default function Home({ onSelectProfile }) {
             </div>
 
             <div style={{ display: "flex", gap: "24px", marginTop: "40px", color: "#64748b", fontSize: "13px" }}>
-                <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><ShieldCheck size={15} /> Sécurisé</span>
-                <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><Zap size={15} /> Temps réel</span>
+                {/*<span style={{ display: "flex", alignItems: "center", gap: "6px" }}><ShieldCheck size={15} /> Sécurisé</span>
+                <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><Zap size={15} /> Temps réel</span>*/}
             </div>
         </div>
     );
