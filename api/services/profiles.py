@@ -183,9 +183,7 @@ def get_profiles(db:Session):
 def get_cash(user_id:int,db:Session):
     result = db.query(UserAsset).filter(UserAsset.user_id == user_id, UserAsset.asset_id == 4).first()
 
-    cash = result.quantity
-
-    if not cash:
+    if result is None:
         raise HTTPException(status_code=404, detail="Cash du profil introuvable")
 
-    return cash
+    return result.quantity or 0.0
