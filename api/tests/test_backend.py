@@ -467,11 +467,110 @@ class TestOrders:
         db.query.return_value.all.return_value = [order]
 
         with patch("api.services.orders.get_prix", return_value=50000.0), \
+             patch("api.services.orders.get_held_quantity", return_value=0.5), \
              patch("api.services.orders.sell_asset") as mock_sell:
             from api.services.orders import check_triggers
             check_triggers(db)
 
             mock_sell.assert_called_once()
+
+    def test_set_protection_stores_underscore_type(self, mock_user, mock_asset_btc):
+        """Régression : 'stop-loss' était stocké 'STOP-LOSS' et ne se déclenchait jamais"""
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = None
+
+        with patch("api.services.orders.get_prix", return_value=60000.0):
+            from api.services.orders import set_protection
+            set_protection(mock_user, mock_asset_btc, "stop-loss", 10.0, 0.5, db)
+
+            stored = db.add.call_args[0][0]
+            assert stored.order_type == "STOP_LOSS"
+
+    def _order(self, order_type, trigger, asset, user, qty=0.5, order_id=1):
+        order = MagicMock()
+        order.id = order_id
+        order.order_type = order_type
+        order.trigger_price = trigger
+        order.asset_id = asset.id
+        order.user_id = user.id
+        order.quantity = qty
+        order.user = user
+        order.asset = asset
+        return order
+
+    def test_check_triggers_legacy_hyphen_type_fires(self, mock_user, mock_asset_btc):
+        """Les anciens ordres 'STOP-LOSS' déjà en base doivent aussi se déclencher"""
+        db = MagicMock()
+        db.query.return_value.all.return_value = [self._order("STOP-LOSS", 55000.0, mock_asset_btc, mock_user)]
+
+        with patch("api.services.orders.get_prix", return_value=50000.0), \
+             patch("api.services.orders.get_held_quantity", return_value=0.5), \
+             patch("api.services.orders.sell_asset") as mock_sell:
+            from api.services.orders import check_triggers
+            check_triggers(db)
+
+            mock_sell.assert_called_once()
+
+    def test_check_triggers_sells_at_most_held_quantity(self, mock_user, mock_asset_btc):
+        db = MagicMock()
+        db.query.return_value.all.return_value = [self._order("STOP_LOSS", 55000.0, mock_asset_btc, mock_user, qty=1.0)]
+
+        with patch("api.services.orders.get_prix", return_value=50000.0), \
+             patch("api.services.orders.get_held_quantity", return_value=0.3), \
+             patch("api.services.orders.sell_asset") as mock_sell:
+            from api.services.orders import check_triggers
+            check_triggers(db)
+
+            assert mock_sell.call_args.kwargs["amount_asset"] == 0.3
+
+    def test_check_triggers_no_position_deletes_without_selling(self, mock_user, mock_asset_btc):
+        db = MagicMock()
+        db.query.return_value.all.return_value = [self._order("STOP_LOSS", 55000.0, mock_asset_btc, mock_user)]
+
+        with patch("api.services.orders.get_prix", return_value=50000.0), \
+             patch("api.services.orders.get_held_quantity", return_value=0.0), \
+             patch("api.services.orders.delete_orders_for_position") as mock_delete, \
+             patch("api.services.orders.sell_asset") as mock_sell:
+            from api.services.orders import check_triggers
+            check_triggers(db)
+
+            mock_sell.assert_not_called()
+            mock_delete.assert_called_once()
+
+    def test_check_triggers_sibling_order_not_executed_twice(self, mock_user, mock_asset_btc):
+        """SL et TP de la même position : un seul déclenchement, l'autre est supprimé"""
+        db = MagicMock()
+        sl = self._order("STOP_LOSS", 55000.0, mock_asset_btc, mock_user, order_id=1)
+        tp = self._order("TAKE_PROFIT", 40000.0, mock_asset_btc, mock_user, order_id=2)  # les deux "déclenchés"
+        db.query.return_value.all.return_value = [sl, tp]
+
+        with patch("api.services.orders.get_prix", return_value=50000.0), \
+             patch("api.services.orders.get_held_quantity", return_value=0.5), \
+             patch("api.services.orders.delete_orders_for_position") as mock_delete, \
+             patch("api.services.orders.sell_asset") as mock_sell:
+            from api.services.orders import check_triggers
+            check_triggers(db)
+
+            mock_sell.assert_called_once()
+            mock_delete.assert_called_once()
+
+    def test_check_triggers_error_does_not_block_other_orders(self, mock_user, mock_asset_btc, mock_asset_eth=None):
+        db = MagicMock()
+        other_asset = MagicMock()
+        other_asset.id = mock_asset_btc.id + 100
+        bad = self._order("STOP_LOSS", 55000.0, mock_asset_btc, mock_user, order_id=1)
+        good = self._order("STOP_LOSS", 55000.0, other_asset, mock_user, order_id=2)
+        db.query.return_value.all.return_value = [bad, good]
+
+        with patch("api.services.orders.get_prix", return_value=50000.0), \
+             patch("api.services.orders.get_held_quantity", return_value=0.5), \
+             patch("api.services.orders.delete_orders_for_position"), \
+             patch("api.services.orders.sell_asset", side_effect=[Exception("boom"), None]) as mock_sell:
+            from api.services.orders import check_triggers
+            check_triggers(db)
+
+            assert mock_sell.call_count == 2
+            db.rollback.assert_called_once()
 
     def test_check_triggers_take_profit_not_fired(self, mock_user, mock_asset_btc):
         db = MagicMock()
@@ -1193,11 +1292,9 @@ class TestProfilesExtra:
         assert result == 1500.0
 
     def test_get_cash_no_usd_raises(self):
-        """get_cash lève 404 si pas de USD"""
+        """get_cash lève 404 si le profil n'a pas de ligne USD"""
         db = MagicMock()
-        usd_holding = MagicMock()
-        usd_holding.quantity = 0.0  # quantity falsy
-        db.query.return_value.filter.return_value.first.return_value = usd_holding
+        db.query.return_value.filter.return_value.first.return_value = None
 
         from api.services.profiles import get_cash
         from fastapi import HTTPException
@@ -1206,6 +1303,17 @@ class TestProfilesExtra:
             get_cash(1, db)
 
         assert exc.value.status_code == 404
+
+    def test_get_cash_zero_returns_zero(self):
+        """Régression : un solde USD à 0 doit renvoyer 0.0, pas une 404"""
+        db = MagicMock()
+        usd_holding = MagicMock()
+        usd_holding.quantity = 0.0
+        db.query.return_value.filter.return_value.first.return_value = usd_holding
+
+        from api.services.profiles import get_cash
+
+        assert get_cash(1, db) == 0.0
 
 
 # ─────────────────────────────────────────────
