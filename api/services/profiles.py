@@ -1,7 +1,17 @@
+import os
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
-from api.db.models import User, Asset, UserAsset, Trade
+from api.db.models import User, Asset, UserAsset, Trade, UserPosition, Order
 from api.services.prices import get_prix
+
+
+FAVORITES_DIR = "api/data/favorites"
+
+
+def favorites_path(user_id: int) -> str:
+    """Fichier JSON des favoris d'un profil (partagé par les routes favoris et delete_profile)."""
+    return f"{FAVORITES_DIR}/favorites_{user_id}.json"
 
 
 def get_portfolio(user_id: int, db: Session):
@@ -45,22 +55,43 @@ def get_portfolio(user_id: int, db: Session):
     }
 
 
+DUPLICATE_NAME_DETAIL = "Un profil avec ce nom existe déjà"
+
+
+def normalize_profile_name(name: str) -> str:
+    """Retire les espaces autour du nom et refuse un nom vide."""
+    cleaned = (name or "").strip()
+    if not cleaned:
+        raise HTTPException(status_code=400, detail="Le nom du profil ne peut pas être vide")
+    return cleaned
+
+
 def create_profile(name: str, db: Session):
+    name = normalize_profile_name(name)
+
     existing_user = db.query(User).filter(User.name == name).first()
     if existing_user:
-        raise HTTPException(status_code=400, detail="Un profil avec ce nom existe déjà")
+        raise HTTPException(status_code=400, detail=DUPLICATE_NAME_DETAIL)
 
-    new_user = User(name=name)
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-
-    # Ajouter le solde de départ (50k us dollars)
+    # On vérifie le dollar AVANT de créer quoi que ce soit : pas de profil sans solde
     dollar = db.query(Asset).filter(Asset.symbol == "USD").first()
-    starting_balance = UserAsset(user_id=new_user.id, asset_id=dollar.id, quantity=2000)
-    db.add(starting_balance)
-    db.commit()
+    if dollar is None:
+        raise HTTPException(status_code=500, detail="Monnaie USD absente de la base")
 
+    try:
+        new_user = User(name=name)
+        db.add(new_user)
+        db.flush()  # attribue new_user.id sans commit
+
+        # Solde de départ (2000 USD)
+        db.add(UserAsset(user_id=new_user.id, asset_id=dollar.id, quantity=2000))
+        db.commit()  # profil + solde en une seule transaction
+    except IntegrityError:
+        # Deux créations simultanées avec le même nom
+        db.rollback()
+        raise HTTPException(status_code=400, detail=DUPLICATE_NAME_DETAIL)
+
+    db.refresh(new_user)
     return new_user
 
 
@@ -69,8 +100,19 @@ def edit_profile(user_id: int, new_name: str, db: Session):
     if not user:
         raise HTTPException(status_code=404, detail="Profil introuvable")
 
-    user.name = new_name
-    db.commit()
+    new_name = normalize_profile_name(new_name)
+
+    other_user = db.query(User).filter(User.name == new_name, User.id != user_id).first()
+    if other_user:
+        raise HTTPException(status_code=400, detail=DUPLICATE_NAME_DETAIL)
+
+    try:
+        user.name = new_name
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=DUPLICATE_NAME_DETAIL)
+
     db.refresh(user)
     return user
 
@@ -83,8 +125,18 @@ def delete_profile(user_id: int, db: Session):
     # suppression des données liées
     db.query(UserAsset).filter(UserAsset.user_id == user.id).delete()
     db.query(Trade).filter(Trade.user_id == user_id).delete()
+    db.query(UserPosition).filter(UserPosition.user_id == user_id).delete()
+    db.query(Order).filter(Order.user_id == user_id).delete()
     db.delete(user)
     db.commit()
+
+    # Après le commit seulement : si la base échoue, les favoris restent intacts
+    try:
+        os.remove(favorites_path(user_id))
+    except FileNotFoundError:
+        pass  # aucun favori enregistré pour ce profil
+    except OSError as e:
+        print(f"[Profiles] Impossible de supprimer les favoris du profil {user_id} : {e}")
 
 
 def get_performance(user_id:int,original_amount:int,db:Session):

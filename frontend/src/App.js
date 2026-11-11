@@ -30,7 +30,7 @@ function App() {
             {/* ROUTE PARENTALE : Gère le Layout (Sidebar) */}
           <Route path="/dashboard" element={<Dashboard profileId={profileId} />}>
               {/* 1. Contenu par défaut (s'affiche sur /dashboard) */}
-              <Route index element={<DashboardContent profileId={profileId} />} />
+              <Route index element={<DashboardContent />} />
               {/* 2. AssetPage (s'affiche sur /dashboard/asset/:symbol) */}
               <Route path="asset/:symbol" element={<AssetPage profileId={profileId}/>} />
           </Route>

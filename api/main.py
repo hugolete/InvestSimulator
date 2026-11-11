@@ -3,9 +3,9 @@ import threading
 from datetime import datetime, timezone
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI, Depends, HTTPException, Form, Header
+from fastapi import FastAPI, Depends, HTTPException, Form, Header, Query
 from sqlalchemy.orm import Session
-from api.services.orders import check_triggers, set_protection
+from api.services.orders import check_triggers, set_protection, delete_order
 from .db.models import Asset, Base, User, Trade, UserPosition, Order
 from .db.db import get_db, engine, SessionLocal
 from .services import profiles
@@ -243,7 +243,7 @@ def get_profiles(db: Session = Depends(get_db)):
 
 
 @app.post("/api/profiles")
-def create_profile(name: str, db: Session = Depends(get_db)):
+def create_profile(name: str = Query(..., min_length=1, max_length=50), db: Session = Depends(get_db)):
     user = profiles.create_profile(name, db)
 
     return {
@@ -254,7 +254,7 @@ def create_profile(name: str, db: Session = Depends(get_db)):
 
 
 @app.put("/api/profiles/{user_id}/edit")
-def edit_profile(user_id: int, new_name: str, db: Session = Depends(get_db)):
+def edit_profile(user_id: int, new_name: str = Query(..., min_length=1, max_length=50), db: Session = Depends(get_db)):
     user = profiles.edit_profile(user_id, new_name, db)
 
     return {
@@ -273,7 +273,7 @@ def delete_profile(user_id: int, db: Session = Depends(get_db)):
 
 # acheter un asset
 @app.post("/api/buy")
-def buy_endpoint(user_id:int = Form(...), symbol:str = Form(...), amount_fiat:float = Form(...), comment:str = Form(...), currency:str="USD", db: Session = Depends(get_db)):
+def buy_endpoint(user_id:int = Form(...), symbol:str = Form(...), amount_fiat:float = Form(..., gt=0, allow_inf_nan=False), comment:str = Form(...), currency:str="USD", db: Session = Depends(get_db)):
     symbol_currency = "$"
     symbol = symbol.upper()
 
@@ -297,7 +297,7 @@ def buy_endpoint(user_id:int = Form(...), symbol:str = Form(...), amount_fiat:fl
 
 # vendre un asset possédé par le profil
 @app.post("/api/sell")
-def sell_endpoint(user_id:int = Form(...), symbol:str = Form(...), asset_amount:float = Form(...), comment:str = Form(...), currency:str="USD",db: Session = Depends(get_db)):
+def sell_endpoint(user_id:int = Form(...), symbol:str = Form(...), asset_amount:float = Form(..., gt=0, allow_inf_nan=False), comment:str = Form(...), currency:str="USD",db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     asset = db.query(Asset).filter(Asset.symbol == symbol).first()
 
@@ -441,9 +441,8 @@ def chart(symbol: str, period: str, db: Session = Depends(get_db)):
 
 @app.post("/api/favorites/{user_id}")
 def add_favorite(user_id: int, symbol: str):
-    folder_path = "api/data/favorites"
-    os.makedirs(folder_path, exist_ok=True)
-    path = f"api/data/favorites/favorites_{user_id}.json"
+    os.makedirs(profiles.FAVORITES_DIR, exist_ok=True)
+    path = profiles.favorites_path(user_id)
 
     if os.path.exists(path):
         with open(path, "r") as f:
@@ -466,7 +465,7 @@ def add_favorite(user_id: int, symbol: str):
 
 @app.delete("/api/favorites/{user_id}/{symbol}")
 def remove_favori(user_id: int, symbol: str):
-    path = f"api/data/favorites/favorites_{user_id}.json"
+    path = profiles.favorites_path(user_id)
 
     if not os.path.exists(path):
         return {"favorites": []}
@@ -488,7 +487,7 @@ def remove_favori(user_id: int, symbol: str):
 
 @app.get("/api/favorites/{user_id}")
 def get_favorites(user_id: int):
-    path = f"api/data/favorites/favorites_{user_id}.json"
+    path = profiles.favorites_path(user_id)
 
     if not os.path.exists(path):
         return {
@@ -535,7 +534,10 @@ def cash(user_id:int, db: Session = Depends(get_db)):
 
 
 @app.post("/api/profiles/{user_id}/orders")
-def add_order(user_id: int, symbol:str,order_type:str,percentage:float,quantity:float, db: Session = Depends(get_db)):
+def add_order(user_id: int, symbol:str, order_type:str,
+              percentage: float = Query(..., allow_inf_nan=False),
+              quantity: float = Query(..., gt=0, allow_inf_nan=False),
+              db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
@@ -554,8 +556,16 @@ def add_order(user_id: int, symbol:str,order_type:str,percentage:float,quantity:
             db=db
         )
         return {"status": "success", "message": message}
+    except HTTPException:
+        raise  # garde le code et le message d'origine (400, 404...)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/api/profiles/{user_id}/orders/{order_id}")
+def cancel_order(user_id: int, order_id: int, db: Session = Depends(get_db)):
+    delete_order(user_id, order_id, db)
+    return {"status": "success", "message": f"Ordre {order_id} annulé"}
 
 
 @app.get("/api/profiles/{user_id}/orders")

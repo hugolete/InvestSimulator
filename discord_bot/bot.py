@@ -18,25 +18,56 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
-async def api_get(path: str):
-    async with aiohttp.ClientSession() as s:
-        async with s.get(f"{API_BASE}{path}", headers={"X-API-Key": API_KEY}) as r:
-            r.raise_for_status()
-            return await r.json()
+class APIError(Exception):
+    """Erreur renvoyée par l'API, avec le message 'detail' de FastAPI."""
 
 
-async def api_post(path: str, data: dict):
+def format_api_detail(detail):
+    # HTTPException -> string ; erreur 422 -> liste [{loc: [..., "champ"], msg: "..."}]
+    if isinstance(detail, str):
+        return detail
+    if isinstance(detail, list):
+        parts = []
+        for d in detail:
+            if not isinstance(d, dict):
+                continue
+            loc = d.get("loc") or []
+            field = loc[-1] if loc else None
+            parts.append(f"{field} : {d.get('msg')}" if field else str(d.get("msg")))
+        return " ; ".join(parts) or None
+    return None
+
+
+async def _read_response(r: aiohttp.ClientResponse):
+    if r.status >= 400:
+        try:
+            body = await r.json(content_type=None)
+            detail = format_api_detail(body.get("detail")) if isinstance(body, dict) else None
+        except Exception:
+            detail = None
+        raise APIError(detail or f"HTTP {r.status}")
+    return await r.json()
+
+
+async def _api_request(method: str, path: str, data: dict | None = None, params: dict | None = None):
+    # data   -> corps du formulaire (endpoints avec Form(...) : /api/buy, /api/sell)
+    # params -> paramètres d'URL (endpoints avec paramètres simples : /api/profiles?name=...)
     async with aiohttp.ClientSession() as s:
-        async with s.post(f"{API_BASE}{path}", data=data, headers={"X-API-Key": API_KEY}) as r:
-            r.raise_for_status()
-            return await r.json()
+        async with s.request(method, f"{API_BASE}{path}", data=data, params=params,
+                             headers={"X-API-Key": API_KEY}) as r:
+            return await _read_response(r)
+
+
+async def api_get(path: str, params: dict | None = None):
+    return await _api_request("GET", path, params=params)
+
+
+async def api_post(path: str, data: dict | None = None, params: dict | None = None):
+    return await _api_request("POST", path, data=data, params=params)
 
 
 async def api_delete(path: str):
-    async with aiohttp.ClientSession() as s:
-        async with s.delete(f"{API_BASE}{path}", headers={"X-API-Key": API_KEY}) as r:
-            r.raise_for_status()
-            return await r.json()
+    return await _api_request("DELETE", path)
 
 
 def fmt_price(p) -> str:
@@ -89,13 +120,13 @@ async def profiles(interaction: discord.Interaction):
 async def create_profile(interaction: discord.Interaction, name: str):
     await interaction.response.defer()
     try:
-        data = await api_post("/api/profiles", {"name": name})
+        data = await api_post("/api/profiles", params={"name": name})
     except Exception as e:
         await interaction.followup.send(f"Error: {e}")
         return
     embed = discord.Embed(
         title="✅ Profile created",
-        description=f"**{data.get('name', name)}** — ID `{data.get('id')}`\nStarting balance: **$50,000 USD**",
+        description=f"**{data.get('name', name)}** — ID `{data.get('id')}`\nStarting balance: **$2,000 USD**",
         color=0x57F287,
     )
     await interaction.followup.send(embed=embed)
@@ -228,7 +259,7 @@ async def price(interaction: discord.Interaction, symbol: str):
     amount="Amount in USD to spend",
     comment="Optional trade comment",
 )
-async def buy(interaction: discord.Interaction, user_id: int, symbol: str, amount: float, comment: str = ""):
+async def buy(interaction: discord.Interaction, user_id: int, symbol: str, amount: app_commands.Range[float, 0.01, None], comment: str = ""):
     await interaction.response.defer()
     try:
         data = await api_post(
@@ -268,7 +299,7 @@ async def buy(interaction: discord.Interaction, user_id: int, symbol: str, amoun
     quantity="Quantity of the asset to sell",
     comment="Optional trade comment",
 )
-async def sell(interaction: discord.Interaction, user_id: int, symbol: str, quantity: float, comment: str = ""):
+async def sell(interaction: discord.Interaction, user_id: int, symbol: str, quantity: app_commands.Range[float, 0.00000001, None], comment: str = ""):
     await interaction.response.defer()
     try:
         data = await api_post(
@@ -303,7 +334,7 @@ async def sell(interaction: discord.Interaction, user_id: int, symbol: str, quan
 
 @bot.tree.command(name="history", description="Show trade history for a profile")
 @app_commands.describe(user_id="Profile ID", limit="Max trades to display (default 10)")
-async def history(interaction: discord.Interaction, user_id: int, limit: int = 10):
+async def history(interaction: discord.Interaction, user_id: int, limit: app_commands.Range[int, 1, 50] = 10):
     await interaction.response.defer()
     try:
         data = await api_get(f"/api/profiles/{user_id}/history")
@@ -367,7 +398,9 @@ async def orders(interaction: discord.Interaction, user_id: int):
         return
 
     embed = discord.Embed(title=f"🔔 Orders — profile {user_id}", color=0xFEE75C)
+    embed.set_footer(text="Use /cancel_order with the order ID (#) to cancel an order")
     for o in data:
+        order_id = o.get("id", "?")
         symbol = o.get("symbol", "?")
         otype = o.get("type", "?")
         pct = o.get("target_perc", 0)
@@ -375,11 +408,25 @@ async def orders(interaction: discord.Interaction, user_id: int):
         qty = o.get("quantity", 0)
         icon = "🛑" if otype == "STOP_LOSS" else "🎯"
         embed.add_field(
-            name=f"{icon} {otype} — {symbol}",
+            name=f"{icon} #{order_id} {otype} — {symbol}",
             value=f"Trigger: {fmt_price(trigger)} ({float(pct):+.1f}%)\nQty: {float(qty):g}",
             inline=True,
         )
     await interaction.followup.send(embed=embed)
+
+
+# ── /cancel_order ─────────────────────────────────────────────────────────────
+
+@bot.tree.command(name="cancel_order", description="Cancel a stop-loss / take-profit order")
+@app_commands.describe(user_id="Profile ID", order_id="Order ID (shown as #id in /orders)")
+async def cancel_order(interaction: discord.Interaction, user_id: int, order_id: int):
+    await interaction.response.defer()
+    try:
+        data = await api_delete(f"/api/profiles/{user_id}/orders/{order_id}")
+    except Exception as e:
+        await interaction.followup.send(f"Error: {e}")
+        return
+    await interaction.followup.send(f"🗑️ {data.get('message', f'Order #{order_id} cancelled')} (profile `{user_id}`).")
 
 
 # ── /set_order ────────────────────────────────────────────────────────────────
@@ -402,24 +449,20 @@ async def set_order(
     symbol: str,
     order_type: str,
     percentage: float,
-    quantity: float,
+    quantity: app_commands.Range[float, 0.00000001, None],
 ):
     await interaction.response.defer()
     try:
         # endpoint uses query params, not form data
-        async with aiohttp.ClientSession() as s:
-            async with s.post(
-                f"{API_BASE}/api/profiles/{user_id}/orders",
-                params={
-                    "symbol": symbol.upper(),
-                    "order_type": order_type,
-                    "percentage": percentage,
-                    "quantity": quantity,
-                },
-                headers={"X-API-Key": API_KEY}
-            ) as r:
-                r.raise_for_status()
-                data = await r.json()
+        data = await api_post(
+            f"/api/profiles/{user_id}/orders",
+            params={
+                "symbol": symbol.upper(),
+                "order_type": order_type,
+                "percentage": str(percentage),
+                "quantity": str(quantity),
+            },
+        )
     except Exception as e:
         await interaction.followup.send(f"Error: {e}")
         return
@@ -546,7 +589,7 @@ async def favorites(interaction: discord.Interaction, user_id: int):
 async def add_favorite(interaction: discord.Interaction, user_id: int, symbol: str):
     await interaction.response.defer()
     try:
-        await api_post(f"/api/favorites/{user_id}", {"symbol": symbol.upper()})
+        await api_post(f"/api/favorites/{user_id}", params={"symbol": symbol.upper()})
     except Exception as e:
         await interaction.followup.send(f"Error: {e}")
         return

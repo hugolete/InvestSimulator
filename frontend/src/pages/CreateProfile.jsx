@@ -15,11 +15,11 @@ export default function CreateProfile() {
         }
 
         try {
-            const res = await createProfile(name);
+            await createProfile(name);
             alert("Profil créé avec succès !");
             navigate("/");
         } catch (err) {
-            alert("Erreur lors de la création du profil.");
+            alert(`Erreur lors de la création du profil : ${err.message}`);
             console.error(err);
         }
     };

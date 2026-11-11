@@ -1,3 +1,4 @@
+import math
 from datetime import datetime
 from fastapi import HTTPException
 import requests
@@ -6,7 +7,20 @@ from api.db.models import Trade, UserAsset, Asset, UserPosition
 from api.services.prices import get_prix
 
 
+def ensure_positive_amount(value, label: str):
+    """Refuse les montants <= 0, NaN ou infinis (sinon un montant négatif crée de l'argent)."""
+    try:
+        valid = math.isfinite(value) and value > 0
+    except TypeError:
+        valid = False
+
+    if not valid:
+        raise HTTPException(status_code=400, detail=f"{label} invalide : doit être un nombre strictement positif")
+
+
 def buy_asset(user,asset,amount_fiat:float,currency:str,comment:str,db:Session):
+    ensure_positive_amount(amount_fiat, "Montant d'achat")
+
     # vérifier que l’utilisateur possède assez de fonds
     currency = db.query(Asset).filter(Asset.symbol == currency.upper()).first()
     print(asset)
@@ -96,6 +110,8 @@ def buy_asset(user,asset,amount_fiat:float,currency:str,comment:str,db:Session):
 
 
 def sell_asset(user,asset,amount_asset:float,currency:str,comment:str,db:Session):
+    ensure_positive_amount(amount_asset, "Quantité à vendre")
+
     # vérifier que l’utilisateur possède assez de l'asset qu'il veut vendre
     if user is None or asset is None:
         raise HTTPException(status_code=400, detail="Utilisateur ou asset inexistant")
@@ -146,6 +162,7 @@ def sell_asset(user,asset,amount_asset:float,currency:str,comment:str,db:Session
 
         if pos:
             pos.quantity -= amount_asset
+            pos.total_cost = pos.quantity * pos.pmp
             pos.last_updated = datetime.now()
 
             # Si on a tout vendu (ou presque, à cause des arrondis float)

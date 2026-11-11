@@ -32,7 +32,7 @@ jest.mock("recharts", () => {
 
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Routes, Route, Outlet, useOutletContext } from "react-router-dom";
 import { apiGet, apiPost, apiDelete, apiPut, apiForm } from "../api/api";
 import * as assetsApi from "../api/assets";
 import * as profilesApi from "../api/profiles";
@@ -41,31 +41,74 @@ import * as favoritesApi from "../api/favorites";
 // ─────────────────────────────────────────────
 // Tests : src/api/api.js
 // ─────────────────────────────────────────────
-describe("api.js - apiFetch", () => {
+describe("api.js (implémentation réelle)", () => {
+    // api.js est mocké pour le reste du fichier : ici on charge la vraie version
+    const realApi = jest.requireActual("../api/api");
+
+    const jsonResponse = (status, body) => ({
+        ok: status >= 200 && status < 300,
+        status,
+        json: async () => body,
+    });
+
     beforeEach(() => {
-        jest.clearAllMocks();
         global.fetch = jest.fn();
-        process.env.REACT_APP_API_KEY = "test-key";
     });
 
-    afterEach(() => jest.resetAllMocks());
-
-    test("apiGet lève une erreur si response.ok = false", async () => {
-        global.fetch.mockResolvedValueOnce({ ok: false, status: 403, json: async () => ({}) });
-        // On teste directement fetch puisque api.js est mocké pour les autres tests
-        // Ici on teste le comportement réel d'apiFetch via global.fetch
-        const response = await fetch("http://localhost:8000/api/test");
-        expect(response.ok).toBe(false);
-        expect(response.status).toBe(403);
+    test("apiGet renvoie le JSON si la réponse est OK", async () => {
+        global.fetch.mockResolvedValueOnce(jsonResponse(200, { symbol: "BTC" }));
+        await expect(realApi.apiGet("/api/assets/BTC")).resolves.toEqual({ symbol: "BTC" });
     });
 
-    test("apiForm crée un FormData avec les bonnes entrées", () => {
-        const data = { user_id: 1, symbol: "BTC", amount_fiat: 1000 };
-        const formData = new FormData();
-        Object.entries(data).forEach(([key, value]) => formData.append(key, value));
-        expect(formData.get("user_id")).toBe("1");
-        expect(formData.get("symbol")).toBe("BTC");
-        expect(formData.get("amount_fiat")).toBe("1000");
+    test("apiGet envoie la clé API dans les headers", async () => {
+        global.fetch.mockResolvedValueOnce(jsonResponse(200, {}));
+        await realApi.apiGet("/api/assets");
+        const [url, options] = global.fetch.mock.calls[0];
+        expect(url).toMatch(/\/api\/assets$/);
+        expect(options.headers).toHaveProperty("X-API-Key");
+    });
+
+    test("lève une erreur avec le message 'detail' de FastAPI", async () => {
+        global.fetch.mockResolvedValueOnce(jsonResponse(400, { detail: "Fonds insuffisants pour acheter" }));
+        await expect(realApi.apiGet("/api/x")).rejects.toThrow("Fonds insuffisants pour acheter");
+    });
+
+    test("formate les erreurs de validation 422 (detail = liste)", async () => {
+        global.fetch.mockResolvedValueOnce(jsonResponse(422, {
+            detail: [{ loc: ["body", "amount_fiat"], msg: "Input should be greater than 0" }],
+        }));
+        await expect(realApi.apiGet("/api/x")).rejects.toThrow("amount_fiat : Input should be greater than 0");
+    });
+
+    test("message générique si le corps d'erreur n'est pas du JSON", async () => {
+        global.fetch.mockResolvedValueOnce({
+            ok: false, status: 500, json: async () => { throw new SyntaxError("not json"); },
+        });
+        await expect(realApi.apiGet("/api/x")).rejects.toThrow("API error: 500");
+    });
+
+    test("l'erreur expose le code HTTP", async () => {
+        global.fetch.mockResolvedValueOnce(jsonResponse(404, { detail: "Profil introuvable" }));
+        await expect(realApi.apiGet("/api/x")).rejects.toMatchObject({ status: 404 });
+    });
+
+    test("apiForm envoie un FormData en POST", async () => {
+        global.fetch.mockResolvedValueOnce(jsonResponse(200, { amount: 0.01 }));
+        await realApi.apiForm("/api/buy", { user_id: 1, symbol: "BTC", amount_fiat: 1000 });
+
+        const [url, options] = global.fetch.mock.calls[0];
+        expect(url).toMatch(/\/api\/buy$/);
+        expect(options.method).toBe("POST");
+        expect(options.body).toBeInstanceOf(FormData);
+        expect(options.body.get("symbol")).toBe("BTC");
+        expect(options.body.get("amount_fiat")).toBe("1000");
+    });
+
+    test("régression : apiForm rejette au lieu de résoudre avec {detail} en cas d'erreur", async () => {
+        global.fetch.mockResolvedValueOnce(jsonResponse(400, { detail: "Fonds insuffisants pour acheter" }));
+        await expect(
+            realApi.apiForm("/api/buy", { user_id: 1, symbol: "BTC", amount_fiat: 999999 })
+        ).rejects.toThrow("Fonds insuffisants pour acheter");
     });
 });
 
@@ -262,13 +305,14 @@ describe("Home.jsx", () => {
         getProfilesSpy.mockRestore();
     });
 
-    test("affiche le titre 'Choisissez un profil'", async () => {
+    test("affiche le titre et le libellé de sélection", async () => {
         getProfilesSpy.mockResolvedValueOnce([]);
         render(<MemoryRouter><Home onSelectProfile={jest.fn()} /></MemoryRouter>);
 
         // Résolution de l'effet asynchrone pour éviter l'avertissement 'act(...)'
         await waitFor(() => {
-            expect(screen.getByText(/Choisissez un profil/i)).toBeInTheDocument();
+            expect(screen.getByRole("heading", { name: "InvestSimulator" })).toBeInTheDocument();
+            expect(screen.getByText(/Sélectionner un profil/i)).toBeInTheDocument();
         });
     });
 
@@ -284,29 +328,29 @@ describe("Home.jsx", () => {
         });
     });
 
-    test("bouton Continuer désactivé si pas de profils", async () => {
+    test("bouton 'Accéder au Dashboard' désactivé si pas de profils", async () => {
         getProfilesSpy.mockResolvedValueOnce([]);
         render(<MemoryRouter><Home onSelectProfile={jest.fn()} /></MemoryRouter>);
         await waitFor(() => {
-            expect(screen.getByText(/Continuer/i)).toBeDisabled();
+            expect(screen.getByRole("button", { name: /Accéder au Dashboard/i })).toBeDisabled();
         });
     });
 
-    test("appelle onSelectProfile au clic sur Continuer", async () => {
+    test("appelle onSelectProfile (en nombre) au clic sur 'Accéder au Dashboard'", async () => {
         const mockOnSelect = jest.fn();
         getProfilesSpy.mockResolvedValueOnce([{ id: 1, name: "Alice" }]);
         render(<MemoryRouter><Home onSelectProfile={mockOnSelect} /></MemoryRouter>);
 
         await waitFor(() => expect(screen.getByText(/Alice/i)).toBeInTheDocument());
-        fireEvent.click(screen.getByText(/Continuer/i));
+        fireEvent.click(screen.getByRole("button", { name: /Accéder au Dashboard/i }));
         expect(mockOnSelect).toHaveBeenCalledWith(1);
     });
 
-    test("bouton 'Créer un profil' est présent", async () => {
+    test("bouton 'Créer un nouveau profil' est présent", async () => {
         getProfilesSpy.mockResolvedValueOnce([]);
         render(<MemoryRouter><Home onSelectProfile={jest.fn()} /></MemoryRouter>);
         await waitFor(() => {
-            expect(screen.getByText(/Créer un profil/i)).toBeInTheDocument();
+            expect(screen.getByRole("button", { name: /Créer un nouveau profil/i })).toBeInTheDocument();
         });
     });
 });
@@ -316,50 +360,104 @@ describe("Home.jsx", () => {
 // ─────────────────────────────────────────────
 describe("CreateProfile.jsx", () => {
     const CreateProfile = require("../pages/CreateProfile").default;
+    let createProfileSpy, alertSpy;
+
+    beforeEach(() => {
+        createProfileSpy = jest.spyOn(profilesApi, "createProfile");
+        alertSpy = jest.spyOn(window, "alert").mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+        createProfileSpy.mockRestore();
+        alertSpy.mockRestore();
+    });
 
     test("affiche le titre et le formulaire", () => {
         render(<MemoryRouter><CreateProfile /></MemoryRouter>);
-        expect(screen.getByText(/Créer un profil/i)).toBeInTheDocument();
-        expect(screen.getByPlaceholderText(/Nom du profil/i)).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: /Nouveau Profil/i })).toBeInTheDocument();
+        expect(screen.getByRole("textbox")).toBeInTheDocument();
     });
 
-    test("le bouton submit est de type submit", () => {
+    test("le bouton 'Créer le profil' est de type submit", () => {
         render(<MemoryRouter><CreateProfile /></MemoryRouter>);
-        const button = screen.getByRole("button", { name: /^Créer$/i });
+        const button = screen.getByRole("button", { name: /Créer le profil/i });
         expect(button).toHaveAttribute("type", "submit");
     });
 
     test("met à jour l'input quand on tape", () => {
         render(<MemoryRouter><CreateProfile /></MemoryRouter>);
-        const input = screen.getByPlaceholderText(/Nom du profil/i);
+        const input = screen.getByRole("textbox");
         fireEvent.change(input, { target: { value: "MonProfil" } });
         expect(input.value).toBe("MonProfil");
+    });
+
+    test("refuse un nom vide sans appeler l'API", () => {
+        render(<MemoryRouter><CreateProfile /></MemoryRouter>);
+        fireEvent.change(screen.getByRole("textbox"), { target: { value: "   " } });
+        fireEvent.click(screen.getByRole("button", { name: /Créer le profil/i }));
+
+        expect(createProfileSpy).not.toHaveBeenCalled();
+        expect(alertSpy).toHaveBeenCalledWith("Veuillez entrer un nom valide.");
+    });
+
+    test("affiche le message d'erreur renvoyé par l'API", async () => {
+        const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+        createProfileSpy.mockRejectedValueOnce(new Error("Un profil avec ce nom existe déjà"));
+
+        render(<MemoryRouter><CreateProfile /></MemoryRouter>);
+        fireEvent.change(screen.getByRole("textbox"), { target: { value: "Alice" } });
+        fireEvent.click(screen.getByRole("button", { name: /Créer le profil/i }));
+
+        await waitFor(() => {
+            expect(alertSpy).toHaveBeenCalledWith(expect.stringContaining("Un profil avec ce nom existe déjà"));
+        });
+        consoleSpy.mockRestore();
     });
 });
 
 // ─────────────────────────────────────────────
-// Tests : App.js - persistance profileId localStorage
+// Tests : App.js - persistance profileId localStorage (vrai composant App)
 // ─────────────────────────────────────────────
 describe("App.js - localStorage profileId", () => {
-    beforeEach(() => localStorage.clear());
+    const App = require("../App").default;
+    let getProfilesSpy, getProfileSpy, getAllPricesSpy, consoleSpy;
 
-    test("profileId est null si localStorage vide", () => {
-        const profileId = localStorage.getItem("profileId")
-            ? parseInt(localStorage.getItem("profileId")) : null;
-        expect(profileId).toBeNull();
+    beforeEach(() => {
+        localStorage.clear();
+        window.history.pushState({}, "", "/");
+        getProfilesSpy = jest.spyOn(profilesApi, "getProfiles").mockResolvedValue([{ id: 1, name: "Alice" }]);
+        // Le profil n'est pas chargeable : le Dashboard affiche son écran d'erreur, ce qui suffit ici
+        getProfileSpy = jest.spyOn(profilesApi, "getProfile").mockRejectedValue(new Error("not found"));
+        getAllPricesSpy = jest.spyOn(assetsApi, "getAllPrices").mockResolvedValue({});
+        consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
     });
 
-    test("profileId est parsé en int depuis localStorage", () => {
+    afterEach(() => {
+        getProfilesSpy.mockRestore();
+        getProfileSpy.mockRestore();
+        getAllPricesSpy.mockRestore();
+        consoleSpy.mockRestore();
+        window.history.pushState({}, "", "/");
+    });
+
+    test("sélectionner un profil le sauvegarde dans localStorage", async () => {
+        render(<App />);
+
+        await waitFor(() => expect(screen.getByText(/Alice/i)).toBeInTheDocument());
+        fireEvent.click(screen.getByRole("button", { name: /Accéder au Dashboard/i }));
+
+        expect(localStorage.getItem("profileId")).toBe("1");
+        await waitFor(() => expect(getProfileSpy).toHaveBeenCalledWith(1));
+    });
+
+    test("le profileId sauvegardé est restauré (en nombre) au rechargement", async () => {
         localStorage.setItem("profileId", "42");
-        const profileId = parseInt(localStorage.getItem("profileId"));
-        expect(profileId).toBe(42);
-        expect(typeof profileId).toBe("number");
-    });
+        window.history.pushState({}, "", "/dashboard");
 
-    test("handleSelectProfile sauvegarde dans localStorage", () => {
-        const handleSelectProfile = (id) => localStorage.setItem("profileId", id);
-        handleSelectProfile(5);
-        expect(localStorage.getItem("profileId")).toBe("5");
+        render(<App />);
+
+        await waitFor(() => expect(getProfileSpy).toHaveBeenCalledWith(42));
+        await waitFor(() => expect(screen.getByText(/Profil non trouvé/i)).toBeInTheDocument());
     });
 });
 
@@ -421,17 +519,16 @@ describe("Sidebar.jsx", () => {
     const renderSidebar = (isOpen = true) =>
         render(<MemoryRouter><Sidebar isOpen={isOpen} profileId={1} allPrices={{}} /></MemoryRouter>);
 
-    test("est caché quand isOpen = false", async () => {
+    test("n'est pas rendu quand isOpen = false", async () => {
         const { container } = renderSidebar(false);
-        await waitFor(() => {
-            expect(container.querySelector("aside")).toHaveStyle("display: none");
-        });
+        await waitFor(() => expect(getAssetsSpy).toHaveBeenCalled());
+        expect(container.querySelector("aside")).toBeNull();
     });
 
-    test("est visible quand isOpen = true", async () => {
+    test("est rendu quand isOpen = true", async () => {
         const { container } = renderSidebar(true);
         await waitFor(() => {
-            expect(container.querySelector("aside")).toHaveStyle("display: block");
+            expect(container.querySelector("aside")).toBeInTheDocument();
         });
     });
 
@@ -467,39 +564,233 @@ describe("Sidebar.jsx", () => {
 // ─────────────────────────────────────────────
 // Tests : DashboardContent
 // ─────────────────────────────────────────────
-describe("DashboardContent - filtrage des positions", () => {
-    test("filtre les positions à quantity <= 0.00000001", () => {
-        const assets = [
-            { symbol: "BTC", quantity: 0.5, type: "crypto" },
-            { symbol: "USD", quantity: 1000, type: "currency" },
-            { symbol: "ETH", quantity: 0.0, type: "crypto" },
-            { symbol: "AAPL", quantity: 0.00000001, type: "stock" },
+// Monte `child` sous une route parente qui fournit le contexte d'Outlet (comme Dashboard)
+const outletTree = (child, context, { initialPath = "/dashboard", childPath = null } = {}) => (
+    <MemoryRouter initialEntries={[initialPath]}>
+        <Routes>
+            <Route path="/dashboard" element={<Outlet context={context} />}>
+                {childPath
+                    ? <Route path={childPath} element={child} />
+                    : <Route index element={child} />}
+            </Route>
+        </Routes>
+    </MemoryRouter>
+);
+
+const fmtUsd = (value) =>
+    Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+describe("DashboardContent + PortfolioHeader (profil partagé par Dashboard)", () => {
+    const DashboardContent = require("../components/DashboardContent").default;
+    let spies;
+
+    const profile = {
+        profileName: "Alice",
+        total_worth: 2500,
+        performance: 25,
+        assets: [
+            { symbol: "BTC", name: "Bitcoin", type: "crypto", quantity: 0.5, worth: 1500 },
+            { symbol: "USD", name: "Dollar", type: "currency", quantity: 1000, worth: 1000 },
+            { symbol: "ETH", name: "Ethereum", type: "crypto", quantity: 0, worth: 0 },
+            { symbol: "AAPL", name: "Apple", type: "stock", quantity: 0.00000001, worth: 0 },
+        ],
+    };
+    const context = (p) => ({ profileData: p, refreshProfile: jest.fn(), allPrices: { BTC: 3000 } });
+
+    beforeEach(() => {
+        spies = [
+            jest.spyOn(assetsApi, "getAssets").mockResolvedValue([]),
+            jest.spyOn(assetsApi, "getAssetDailyPercentages").mockResolvedValue([{ symbol: "BTC", percentage: 2.5 }]),
+            jest.spyOn(profilesApi, "getProfile"),
+            jest.spyOn(profilesApi, "getPerformance"),
         ];
-        const active = assets.filter(i =>
-            i.symbol && i.symbol !== "USD" && i.quantity > 0.00000001 && i.type !== "currency"
+    });
+
+    afterEach(() => spies.forEach(s => s.mockRestore()));
+
+    test("affiche seulement les positions actives (hors cash et quantités nulles)", async () => {
+        render(outletTree(<DashboardContent />, context(profile)));
+
+        await waitFor(() => expect(assetsApi.getAssets).toHaveBeenCalled());
+        expect(screen.getByText("Bitcoin")).toBeInTheDocument();
+        expect(screen.queryByText("Dollar")).not.toBeInTheDocument();
+        expect(screen.queryByText("Ethereum")).not.toBeInTheDocument();
+        expect(screen.queryByText("Apple")).not.toBeInTheDocument();
+    });
+
+    test("ne refait pas de requête profil : utilise le profil du Dashboard", async () => {
+        render(outletTree(<DashboardContent />, context(profile)));
+
+        await waitFor(() => expect(assetsApi.getAssetDailyPercentages).toHaveBeenCalled());
+        expect(profilesApi.getProfile).not.toHaveBeenCalled();
+        expect(profilesApi.getPerformance).not.toHaveBeenCalled();
+    });
+
+    test("l'en-tête affiche total, gain vs départ, performance et liquidités", async () => {
+        render(outletTree(<DashboardContent />, context(profile)));
+        await waitFor(() => expect(assetsApi.getAssets).toHaveBeenCalled());
+
+        expect(screen.getByText(`$${fmtUsd(2500)}`)).toBeInTheDocument();     // valeur totale
+        expect(screen.getByText(`+$${fmtUsd(500)}`)).toBeInTheDocument();     // vs départ (2000)
+        expect(screen.getByText("(+25.00%)")).toBeInTheDocument();             // performance
+        expect(screen.getByText(`$${fmtUsd(1000)}`)).toBeInTheDocument();     // liquidités
+        expect(screen.getAllByText(`$${fmtUsd(1500)}`).length).toBeGreaterThan(0); // positions
+    });
+
+    test("se met à jour quand le profil du contexte change (après un trade)", async () => {
+        const { rerender } = render(outletTree(<DashboardContent />, context(profile)));
+        await waitFor(() => expect(assetsApi.getAssets).toHaveBeenCalled());
+
+        rerender(outletTree(<DashboardContent />, context({ ...profile, total_worth: 3200, performance: 60 })));
+
+        expect(screen.getByText(`$${fmtUsd(3200)}`)).toBeInTheDocument();
+        expect(screen.getByText("(+60.00%)")).toBeInTheDocument();
+    });
+});
+
+// ─────────────────────────────────────────────
+// Tests : Dashboard.jsx (chargement du profil, redirection, rafraîchissement)
+// ─────────────────────────────────────────────
+describe("Dashboard.jsx", () => {
+    const Dashboard = require("../pages/Dashboard").default;
+    let spies, mountCount;
+
+    // Page enfant qui compte ses montages et peut déclencher refreshProfile
+    function Probe() {
+        const { profileData, refreshProfile } = useOutletContext();
+        React.useEffect(() => { mountCount += 1; }, []);
+        return (
+            <div>
+                <span>{`Solde: ${profileData.total_worth}`}</span>
+                <button onClick={refreshProfile}>Rafraîchir</button>
+            </div>
         );
-        expect(active).toHaveLength(1);
-        expect(active[0].symbol).toBe("BTC");
+    }
+
+    const renderDashboard = (profileId) => render(
+        <MemoryRouter initialEntries={["/dashboard"]}>
+            <Routes>
+                <Route path="/" element={<div>Page d'accueil</div>} />
+                <Route path="/dashboard" element={<Dashboard profileId={profileId} />}>
+                    <Route index element={<Probe />} />
+                </Route>
+            </Routes>
+        </MemoryRouter>
+    );
+
+    const profileWith = (total) => ({ profileName: "Alice", total_worth: total, performance: 0, assets: [] });
+
+    beforeEach(() => {
+        mountCount = 0;
+        spies = {
+            getProfile: jest.spyOn(profilesApi, "getProfile"),
+            getAllPrices: jest.spyOn(assetsApi, "getAllPrices").mockResolvedValue({}),
+            getAssets: jest.spyOn(assetsApi, "getAssets").mockResolvedValue([]),
+            getFavorites: jest.spyOn(favoritesApi, "getFavorites").mockResolvedValue([]),
+            consoleError: jest.spyOn(console, "error").mockImplementation(() => {}),
+        };
     });
 
-    test("total_worth est 0 si undefined", () => {
-        const profile = {};
-        expect(profile.total_worth ?? 0).toBe(0);
+    afterEach(() => Object.values(spies).forEach(s => s.mockRestore()));
+
+    test("redirige vers l'accueil si aucun profil n'est sélectionné", async () => {
+        renderDashboard(null);
+
+        await waitFor(() => expect(screen.getByText("Page d'accueil")).toBeInTheDocument());
+        expect(spies.getProfile).not.toHaveBeenCalled();
     });
 
-    test("cash est 0 si USD absent des assets", () => {
-        const profile = { assets: [] };
-        expect(profile.assets?.find(a => a.symbol === "USD")?.quantity ?? 0).toBe(0);
+    test("refreshProfile rafraîchit en arrière-plan sans démonter la page enfant", async () => {
+        spies.getProfile
+            .mockResolvedValueOnce(profileWith(2000))
+            .mockResolvedValueOnce(profileWith(2500));
+
+        renderDashboard(1);
+        await waitFor(() => expect(screen.getByText("Solde: 2000")).toBeInTheDocument());
+
+        fireEvent.click(screen.getByRole("button", { name: "Rafraîchir" }));
+
+        await waitFor(() => expect(screen.getByText("Solde: 2500")).toBeInTheDocument());
+        expect(mountCount).toBe(1);
+        expect(screen.queryByText(/Chargement des données du terminal/i)).not.toBeInTheDocument();
     });
 
-    test("cash retourne la bonne valeur si USD présent", () => {
-        const profile = { assets: [{ symbol: "USD", quantity: 1500.0 }] };
-        expect(profile.assets?.find(a => a.symbol === "USD")?.quantity ?? 0).toBe(1500.0);
+    test("un rafraîchissement en échec garde les dernières données affichées", async () => {
+        spies.getProfile
+            .mockResolvedValueOnce(profileWith(2000))
+            .mockRejectedValueOnce(new Error("Network error"));
+
+        renderDashboard(1);
+        await waitFor(() => expect(screen.getByText("Solde: 2000")).toBeInTheDocument());
+
+        fireEvent.click(screen.getByRole("button", { name: "Rafraîchir" }));
+
+        await waitFor(() => expect(spies.getProfile).toHaveBeenCalledTimes(2));
+        expect(screen.getByText("Solde: 2000")).toBeInTheDocument();
+        expect(screen.queryByText(/Profil non trouvé/i)).not.toBeInTheDocument();
+    });
+});
+
+// ─────────────────────────────────────────────
+// Tests : AssetPage.jsx (achat : rafraîchissement + messages d'erreur)
+// ─────────────────────────────────────────────
+describe("AssetPage.jsx - achat", () => {
+    const AssetPage = require("../pages/AssetPage").default;
+    let spies, context;
+
+    beforeEach(() => {
+        context = {
+            profileData: { assets: [{ symbol: "USD", quantity: 2000 }] },
+            refreshProfile: jest.fn(),
+            allPrices: { BTC: 50000 },
+        };
+        spies = {
+            fetchAssetData: jest.spyOn(assetsApi, "fetchAssetData").mockResolvedValue({
+                asset: { symbol: "BTC", name: "Bitcoin", type: "crypto", sector: "Crypto", price: 50000 },
+                history: { history: { "1d": 49000 } },
+                percentages: {},
+            }),
+            fetchChartData: jest.spyOn(assetsApi, "fetchChartData").mockResolvedValue({ data: [] }),
+            buyAsset: jest.spyOn(assetsApi, "buyAsset"),
+            getProfileHistory: jest.spyOn(profilesApi, "getProfileHistory").mockResolvedValue([]),
+            alert: jest.spyOn(window, "alert").mockImplementation(() => {}),
+            consoleLog: jest.spyOn(console, "log").mockImplementation(() => {}),
+        };
     });
 
-    test("profile.assets?.find ne crash pas si assets est undefined", () => {
-        const profile = { total_worth: 2000 };
-        expect(profile.assets?.find(a => a.symbol === "USD")?.quantity ?? 0).toBe(0);
+    afterEach(() => Object.values(spies).forEach(s => s.mockRestore()));
+
+    const buy100 = async () => {
+        render(outletTree(<AssetPage profileId={1} />, context, {
+            initialPath: "/dashboard/asset/BTC", childPath: "asset/:symbol",
+        }));
+
+        await waitFor(() => expect(screen.getByRole("heading", { name: "Bitcoin" })).toBeInTheDocument());
+        fireEvent.click(screen.getByRole("button", { name: "Acheter" }));
+        fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "100" } });
+        fireEvent.click(screen.getByRole("button", { name: /Confirmer l'achat/i }));
+    };
+
+    test("après un achat réussi : rafraîchit le profil ET l'historique (PRU / plus-values)", async () => {
+        spies.buyAsset.mockResolvedValueOnce({ amount: 0.002, symbol: "BTC" });
+
+        await buy100();
+
+        await waitFor(() => expect(context.refreshProfile).toHaveBeenCalledTimes(1));
+        expect(spies.buyAsset).toHaveBeenCalledWith(1, "BTC", "100", "MANUAL");
+        expect(spies.alert).toHaveBeenCalledWith(expect.stringContaining("Achat réussi"));
+        await waitFor(() => expect(spies.getProfileHistory).toHaveBeenCalledTimes(2));
+    });
+
+    test("en cas d'échec : affiche le message de l'API et ne rafraîchit rien", async () => {
+        spies.buyAsset.mockRejectedValueOnce(new Error("Fonds insuffisants pour acheter"));
+
+        await buy100();
+
+        await waitFor(() => {
+            expect(spies.alert).toHaveBeenCalledWith(expect.stringContaining("Fonds insuffisants pour acheter"));
+        });
+        expect(context.refreshProfile).not.toHaveBeenCalled();
     });
 });
 
@@ -510,15 +801,6 @@ describe("Régressions Frontend", () => {
     beforeEach(() => {
         jest.clearAllMocks();
         localStorage.clear();
-    });
-
-    test("profileId depuis localStorage est un nombre, pas une string", () => {
-        localStorage.setItem("profileId", "1");
-        const profileId = localStorage.getItem("profileId")
-            ? parseInt(localStorage.getItem("profileId")) : null;
-        expect(typeof profileId).toBe("number");
-        expect(profileId).toBe(1);
-        expect(profileId).not.toBe("1");
     });
 
     test("sellAsset refuse quantité = 0", async () => {

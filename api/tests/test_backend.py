@@ -5,29 +5,8 @@ Couvre : profiles, trade, prices, orders, API endpoints
 import math
 import pytest
 from unittest.mock import MagicMock, patch
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-# ─────────────────────────────────────────────
-# Setup DB de test (SQLite en mémoire)
-# ─────────────────────────────────────────────
-TEST_DB_URL = "sqlite:///:memory:"
-
-@pytest.fixture(scope="session")
-def engine():
-    from api.db.models import Base
-    eng = create_engine(TEST_DB_URL, connect_args={"check_same_thread": False})
-    Base.metadata.create_all(bind=eng)
-    return eng
-
-@pytest.fixture
-def db(engine):
-    Session = sessionmaker(bind=engine)
-    session = Session()
-    yield session
-    session.rollback()
-    session.close()
+# La base de test (SQLite en mémoire) et les clients HTTP sont définis dans conftest.py
 
 
 # ─────────────────────────────────────────────
@@ -421,7 +400,8 @@ class TestOrders:
         db = MagicMock()
         db.query.return_value.filter.return_value.first.return_value = None  # Pas d'ordre existant
 
-        with patch("api.services.orders.get_prix", return_value=60000.0):
+        with patch("api.services.orders.get_prix", return_value=60000.0), \
+             patch("api.services.orders.get_held_quantity", return_value=1.0):
             from api.services.orders import set_protection
 
             result = set_protection(mock_user, mock_asset_btc, "take-profit", 10.0, 0.5, db)
@@ -433,7 +413,8 @@ class TestOrders:
         db = MagicMock()
         db.query.return_value.filter.return_value.first.return_value = None
 
-        with patch("api.services.orders.get_prix", return_value=60000.0):
+        with patch("api.services.orders.get_prix", return_value=60000.0), \
+             patch("api.services.orders.get_held_quantity", return_value=1.0):
             from api.services.orders import set_protection
 
             result = set_protection(mock_user, mock_asset_btc, "stop-loss", 10.0, 0.5, db)
@@ -479,7 +460,8 @@ class TestOrders:
         db = MagicMock()
         db.query.return_value.filter.return_value.first.return_value = None
 
-        with patch("api.services.orders.get_prix", return_value=60000.0):
+        with patch("api.services.orders.get_prix", return_value=60000.0), \
+             patch("api.services.orders.get_held_quantity", return_value=1.0):
             from api.services.orders import set_protection
             set_protection(mock_user, mock_asset_btc, "stop-loss", 10.0, 0.5, db)
 
@@ -673,11 +655,13 @@ class TestAPIEndpoints:
         assert response.status_code == 200
         assert "message" in response.json()
 
-    def test_missing_api_key_returns_403(self):
-        from api.main import app
-        with TestClient(app) as c:
-            response = c.get("/api")
-            assert response.status_code in [403,422]
+    def test_missing_api_key_returns_403(self, anon_client):
+        response = anon_client.get("/api")
+        assert response.status_code in [403,422]
+
+    def test_wrong_api_key_returns_403(self, anon_client):
+        response = anon_client.get("/api", headers={"X-API-Key": "mauvaise-cle"})
+        assert response.status_code == 403
 
     def test_get_asset_price_unknown_symbol(self, client):
         response = client.get("/api/assets/UNKNOWN_XYZ_123")
@@ -833,19 +817,17 @@ class TestRegressions:
                 assert not math.isnan(result), f"NaN retourné pour before={bad}"
                 assert not math.isinf(result), f"Inf retourné pour before={bad}"
 
-    def test_api_key_required_on_all_routes(self):
+    def test_api_key_required_on_all_routes(self, anon_client):
         """Régression : vérifier que l'API key est requise sur toutes les routes"""
-        from api.main import app
-        with TestClient(app) as c:
-            routes_to_test = [
-                "/api",
-                "/api/assets",
-                "/api/allprices",
-                "/api/profiles",
-            ]
-            for route in routes_to_test:
-                response = c.get(route)
-                assert response.status_code in [403,422], f"Route {route} accessible sans API key !"
+        routes_to_test = [
+            "/api",
+            "/api/assets",
+            "/api/allprices",
+            "/api/profiles",
+        ]
+        for route in routes_to_test:
+            response = anon_client.get(route)
+            assert response.status_code in [403,422], f"Route {route} accessible sans API key !"
 
     def test_stock_price_uses_cache_first(self):
         """Régression : get_stock_price doit utiliser le cache avant yfinance"""
@@ -1440,3 +1422,487 @@ class TestAPIEndpointsExtra:
             response = client.get("/api/profiles/1/cash")
             assert response.status_code == 200
             assert response.json() == 1500.0
+
+
+# ─────────────────────────────────────────────
+# Tests : validation des montants (négatif / zéro / NaN / infini)
+# Régression : un montant négatif créait de l'argent, NaN corrompait le solde
+# ─────────────────────────────────────────────
+INVALID_AMOUNTS = [-1000.0, -0.01, 0.0, float("nan"), float("inf"), float("-inf")]
+INVALID_FORM_VALUES = ["-1000", "-0.01", "0", "nan", "inf", "-inf"]
+
+
+class TestAmountValidationService:
+    @pytest.mark.parametrize("amount", INVALID_AMOUNTS)
+    def test_buy_rejects_invalid_amount(self, mock_user, mock_asset_btc, amount):
+        from api.services.trade import buy_asset
+        from fastapi import HTTPException
+
+        db = MagicMock()
+        with pytest.raises(HTTPException) as exc:
+            buy_asset(mock_user, mock_asset_btc, amount, "USD", "test", db)
+
+        assert exc.value.status_code == 400
+        db.query.assert_not_called()   # rejeté avant de toucher la base
+        db.commit.assert_not_called()
+
+    @pytest.mark.parametrize("amount", INVALID_AMOUNTS)
+    def test_sell_rejects_invalid_amount(self, mock_user, mock_asset_btc, amount):
+        from api.services.trade import sell_asset
+        from fastapi import HTTPException
+
+        db = MagicMock()
+        with pytest.raises(HTTPException) as exc:
+            sell_asset(mock_user, mock_asset_btc, amount, "USD", "test", db)
+
+        assert exc.value.status_code == 400
+        db.query.assert_not_called()
+        db.commit.assert_not_called()
+
+    def test_buy_rejects_non_number(self, mock_user, mock_asset_btc):
+        from api.services.trade import buy_asset
+        from fastapi import HTTPException
+
+        with pytest.raises(HTTPException) as exc:
+            buy_asset(mock_user, mock_asset_btc, None, "USD", "test", MagicMock())
+        assert exc.value.status_code == 400
+
+
+class TestAmountValidationEndpoints:
+    """Tests de bout en bout sur la base en mémoire (voir conftest.test_db)."""
+
+    def _create_profile(self, client, name="Alice"):
+        response = client.post("/api/profiles", params={"name": name})
+        assert response.status_code == 200
+        return response.json()["id"]
+
+    def _cash(self, client, user_id):
+        response = client.get(f"/api/profiles/{user_id}/cash")
+        assert response.status_code == 200
+        return response.json()
+
+    @pytest.mark.parametrize("value", INVALID_FORM_VALUES)
+    def test_buy_invalid_amount_returns_422_and_keeps_cash(self, client, value):
+        user_id = self._create_profile(client)
+
+        response = client.post("/api/buy", data={
+            "user_id": user_id, "symbol": "BTC", "amount_fiat": value, "comment": "test"
+        })
+
+        assert response.status_code == 422
+        assert self._cash(client, user_id) == 2000.0
+
+    @pytest.mark.parametrize("value", INVALID_FORM_VALUES)
+    def test_sell_invalid_amount_returns_422_and_keeps_cash(self, client, value):
+        user_id = self._create_profile(client)
+
+        response = client.post("/api/sell", data={
+            "user_id": user_id, "symbol": "BTC", "asset_amount": value, "comment": "test"
+        })
+
+        assert response.status_code == 422
+        assert self._cash(client, user_id) == 2000.0
+
+    @pytest.mark.parametrize("value", ["-1", "0", "nan", "inf"])
+    def test_order_invalid_quantity_returns_422(self, client, value):
+        user_id = self._create_profile(client)
+
+        response = client.post(f"/api/profiles/{user_id}/orders", params={
+            "symbol": "BTC", "order_type": "STOP_LOSS", "percentage": 5, "quantity": value
+        })
+
+        assert response.status_code == 422
+
+    @pytest.mark.parametrize("value", ["nan", "inf", "-inf"])
+    def test_order_non_finite_percentage_returns_422(self, client, value):
+        user_id = self._create_profile(client)
+
+        response = client.post(f"/api/profiles/{user_id}/orders", params={
+            "symbol": "BTC", "order_type": "STOP_LOSS", "percentage": value, "quantity": 1
+        })
+
+        assert response.status_code == 422
+
+    def test_valid_buy_still_works(self, client):
+        user_id = self._create_profile(client)
+
+        with patch("api.services.trade.get_prix", return_value=50000.0):
+            response = client.post("/api/buy", data={
+                "user_id": user_id, "symbol": "BTC", "amount_fiat": "100", "comment": "test"
+            })
+
+        assert response.status_code == 200
+        assert response.json()["amount"] == round(100 / 50000, 5)
+        assert self._cash(client, user_id) == 1900.0
+
+    def test_endpoint_tests_use_in_memory_db(self):
+        """Garde-fou : les tests ne doivent jamais toucher invest_simulator.db"""
+        from api.db.db import engine
+        assert str(engine.url) == "sqlite://"
+
+
+# ─────────────────────────────────────────────
+# Helpers pour les tests de bout en bout (base en mémoire)
+# ─────────────────────────────────────────────
+def api_create_profile(client, name="Alice"):
+    response = client.post("/api/profiles", params={"name": name})
+    assert response.status_code == 200, response.text
+    return response.json()["id"]
+
+
+def api_buy_btc(client, user_id, amount="1000", price=50000.0):
+    """Achète du BTC au prix donné : 1000 $ à 50 000 $ -> 0.02 BTC"""
+    with patch("api.services.trade.get_prix", return_value=price):
+        response = client.post("/api/buy", data={
+            "user_id": user_id, "symbol": "BTC", "amount_fiat": amount, "comment": "test"
+        })
+    assert response.status_code == 200, response.text
+
+
+def api_set_order(client, user_id, order_type="STOP_LOSS", percentage=5, quantity=0.01, price=50000.0):
+    with patch("api.services.orders.get_prix", return_value=price):
+        return client.post(f"/api/profiles/{user_id}/orders", params={
+            "symbol": "BTC", "order_type": order_type, "percentage": percentage, "quantity": quantity
+        })
+
+
+# ─────────────────────────────────────────────
+# Tests : validation des ordres (set_protection) - service
+# ─────────────────────────────────────────────
+class TestOrderValidationService:
+    def _set(self, mock_user, mock_asset, percentage=5.0, quantity=0.5, held=1.0):
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = None  # pas d'ordre existant
+        with patch("api.services.orders.get_prix", return_value=60000.0), \
+             patch("api.services.orders.get_held_quantity", return_value=held):
+            from api.services.orders import set_protection
+            return set_protection(mock_user, mock_asset, "STOP_LOSS", percentage, quantity, db), db
+
+    @pytest.mark.parametrize("percentage", [0.0, -0.0, 100.0, -100.0, 150.0, -250.0])
+    def test_invalid_percentage_raises_400(self, mock_user, mock_asset_btc, percentage):
+        from fastapi import HTTPException
+        with pytest.raises(HTTPException) as exc:
+            self._set(mock_user, mock_asset_btc, percentage=percentage)
+        assert exc.value.status_code == 400
+        assert "Pourcentage" in exc.value.detail
+
+    @pytest.mark.parametrize("percentage", [-5.0, 5.0, 0.5, 99.9])
+    def test_valid_percentage_accepted(self, mock_user, mock_asset_btc, percentage):
+        result, db = self._set(mock_user, mock_asset_btc, percentage=percentage)
+        db.commit.assert_called_once()
+        assert "STOP_LOSS" in result
+
+    def test_quantity_above_held_raises_400(self, mock_user, mock_asset_btc):
+        from fastapi import HTTPException
+        with pytest.raises(HTTPException) as exc:
+            self._set(mock_user, mock_asset_btc, quantity=2.0, held=1.0)
+        assert exc.value.status_code == 400
+        assert "Quantité supérieure" in exc.value.detail
+
+    def test_asset_not_held_raises_400(self, mock_user, mock_asset_btc):
+        from fastapi import HTTPException
+        with pytest.raises(HTTPException) as exc:
+            self._set(mock_user, mock_asset_btc, quantity=0.5, held=0.0)
+        assert exc.value.status_code == 400
+        assert "ne possédez pas" in exc.value.detail
+
+    def test_quantity_equal_to_held_with_float_noise_accepted(self, mock_user, mock_asset_btc):
+        result, db = self._set(mock_user, mock_asset_btc, quantity=1.0 + 1e-12, held=1.0)
+        db.commit.assert_called_once()
+
+    def test_delete_unknown_order_raises_404(self):
+        from api.services.orders import delete_order
+        from fastapi import HTTPException
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = None
+
+        with pytest.raises(HTTPException) as exc:
+            delete_order(1, 999, db)
+        assert exc.value.status_code == 404
+        db.delete.assert_not_called()
+
+
+# ─────────────────────────────────────────────
+# Tests : ordres - endpoints (création, validation, annulation)
+# ─────────────────────────────────────────────
+class TestOrdersEndpoints:
+    def test_order_on_asset_not_held_returns_400(self, client):
+        user_id = api_create_profile(client)
+        response = api_set_order(client, user_id, quantity=0.01)
+        assert response.status_code == 400
+        assert "ne possédez pas" in response.json()["detail"]
+
+    def test_order_quantity_above_held_returns_400(self, client):
+        user_id = api_create_profile(client)
+        api_buy_btc(client, user_id)  # 0.02 BTC
+        response = api_set_order(client, user_id, quantity=0.05)
+        assert response.status_code == 400
+        assert "Quantité supérieure" in response.json()["detail"]
+
+    @pytest.mark.parametrize("percentage", [0, 100, -100, 150])
+    def test_order_invalid_percentage_returns_400(self, client, percentage):
+        user_id = api_create_profile(client)
+        api_buy_btc(client, user_id)
+        response = api_set_order(client, user_id, percentage=percentage)
+        assert response.status_code == 400
+
+    def test_unavailable_price_keeps_404_status(self, client):
+        """Régression : le except générique transformait le 404 en 400 '404: ...'"""
+        user_id = api_create_profile(client)
+        api_buy_btc(client, user_id)
+        response = api_set_order(client, user_id, price=None)
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Prix actuel indisponible"
+
+    def test_create_list_and_cancel_order(self, client):
+        user_id = api_create_profile(client)
+        api_buy_btc(client, user_id)
+
+        assert api_set_order(client, user_id, quantity=0.02).status_code == 200
+
+        orders = client.get(f"/api/profiles/{user_id}/orders").json()
+        assert len(orders) == 1
+        order_id = orders[0]["id"]
+
+        response = client.delete(f"/api/profiles/{user_id}/orders/{order_id}")
+        assert response.status_code == 200
+        assert client.get(f"/api/profiles/{user_id}/orders").json() == []
+
+        # Annuler deux fois -> 404
+        assert client.delete(f"/api/profiles/{user_id}/orders/{order_id}").status_code == 404
+
+    def test_cannot_cancel_another_users_order(self, client):
+        alice = api_create_profile(client, "Alice")
+        bob = api_create_profile(client, "Bob")
+        api_buy_btc(client, alice)
+        api_set_order(client, alice)
+        order_id = client.get(f"/api/profiles/{alice}/orders").json()[0]["id"]
+
+        response = client.delete(f"/api/profiles/{bob}/orders/{order_id}")
+
+        assert response.status_code == 404
+        assert len(client.get(f"/api/profiles/{alice}/orders").json()) == 1
+
+
+# ─────────────────────────────────────────────
+# Tests : noms de profil (création / renommage) - service
+# ─────────────────────────────────────────────
+class TestProfileNameService:
+    def test_create_blank_name_raises_400(self):
+        from api.services.profiles import create_profile
+        from fastapi import HTTPException
+
+        db = MagicMock()
+        with pytest.raises(HTTPException) as exc:
+            create_profile("   ", db)
+        assert exc.value.status_code == 400
+        db.add.assert_not_called()
+
+    def test_create_without_usd_creates_nothing(self):
+        from api.services.profiles import create_profile
+        from fastapi import HTTPException
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [None, None]  # pas de doublon, pas d'USD
+
+        with pytest.raises(HTTPException) as exc:
+            create_profile("Alice", db)
+        assert exc.value.status_code == 500
+        db.add.assert_not_called()
+        db.commit.assert_not_called()
+
+    def test_create_is_a_single_transaction(self):
+        from api.services.profiles import create_profile
+
+        db = MagicMock()
+        usd = MagicMock()
+        usd.id = 4
+        db.query.return_value.filter.return_value.first.side_effect = [None, usd]
+
+        user = create_profile("  Alice  ", db)
+
+        assert user.name == "Alice"  # espaces retirés
+        db.flush.assert_called_once()
+        db.commit.assert_called_once()
+        assert db.add.call_count == 2  # profil + solde
+
+    def test_create_integrity_error_becomes_400(self):
+        from api.services.profiles import create_profile
+        from fastapi import HTTPException
+        from sqlalchemy.exc import IntegrityError
+
+        db = MagicMock()
+        usd = MagicMock()
+        usd.id = 4
+        db.query.return_value.filter.return_value.first.side_effect = [None, usd]
+        db.commit.side_effect = IntegrityError("INSERT", {}, Exception("UNIQUE constraint failed"))
+
+        with pytest.raises(HTTPException) as exc:
+            create_profile("Alice", db)
+        assert exc.value.status_code == 400
+        db.rollback.assert_called_once()
+
+    def test_edit_to_existing_name_raises_400(self, mock_user):
+        from api.services.profiles import edit_profile
+        from fastapi import HTTPException
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [mock_user, MagicMock()]  # user, puis un autre avec ce nom
+
+        with pytest.raises(HTTPException) as exc:
+            edit_profile(1, "Bob", db)
+        assert exc.value.status_code == 400
+        db.commit.assert_not_called()
+
+    def test_edit_blank_name_raises_400(self, mock_user):
+        from api.services.profiles import edit_profile
+        from fastapi import HTTPException
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = mock_user
+
+        with pytest.raises(HTTPException) as exc:
+            edit_profile(1, "   ", db)
+        assert exc.value.status_code == 400
+
+
+# ─────────────────────────────────────────────
+# Tests : noms de profil - endpoints
+# ─────────────────────────────────────────────
+class TestProfileNameEndpoints:
+    def test_create_strips_name_and_gives_starting_cash(self, client):
+        response = client.post("/api/profiles", params={"name": "  Bob  "})
+        assert response.status_code == 200
+        assert response.json()["name"] == "Bob"
+        assert client.get(f"/api/profiles/{response.json()['id']}/cash").json() == 2000.0
+
+    def test_create_blank_name_returns_400(self, client):
+        response = client.post("/api/profiles", params={"name": "   "})
+        assert response.status_code == 400
+
+    @pytest.mark.parametrize("name", ["", "x" * 51])
+    def test_create_name_length_returns_422(self, client, name):
+        response = client.post("/api/profiles", params={"name": name})
+        assert response.status_code == 422
+
+    def test_create_duplicate_returns_400(self, client):
+        api_create_profile(client, "Alice")
+        response = client.post("/api/profiles", params={"name": "Alice"})
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Un profil avec ce nom existe déjà"
+
+    def test_rename_to_existing_name_returns_400(self, client):
+        api_create_profile(client, "Alice")
+        bob = api_create_profile(client, "Bob")
+
+        response = client.put(f"/api/profiles/{bob}/edit", params={"new_name": "Alice"})
+
+        assert response.status_code == 400
+        assert client.get("/api/profiles").json()[1]["name"] == "Bob"
+
+    def test_rename_to_own_name_is_allowed(self, client):
+        alice = api_create_profile(client, "Alice")
+        response = client.put(f"/api/profiles/{alice}/edit", params={"new_name": " Alice "})
+        assert response.status_code == 200
+        assert response.json()["name"] == "Alice"
+
+    def test_rename_blank_returns_400(self, client):
+        alice = api_create_profile(client, "Alice")
+        response = client.put(f"/api/profiles/{alice}/edit", params={"new_name": "   "})
+        assert response.status_code == 400
+
+    def test_rename_unknown_profile_returns_404(self, client):
+        response = client.put("/api/profiles/999/edit", params={"new_name": "Ghost"})
+        assert response.status_code == 404
+
+
+# ─────────────────────────────────────────────
+# Tests : suppression de profil (positions + ordres supprimés)
+# ─────────────────────────────────────────────
+class TestDeleteProfileEndpoint:
+    def test_delete_removes_positions_and_orders(self, client, test_db):
+        from api.db.models import UserPosition, Order, UserAsset, Trade
+
+        user_id = api_create_profile(client)
+        api_buy_btc(client, user_id)
+        assert api_set_order(client, user_id).status_code == 200
+
+        response = client.delete(f"/api/profiles/{user_id}/delete")
+        assert response.status_code == 200
+
+        with test_db() as session:
+            for model in (UserPosition, Order, UserAsset, Trade):
+                assert session.query(model).filter(model.user_id == user_id).count() == 0, model.__name__
+
+    def test_new_profile_does_not_inherit_deleted_profile_data(self, client):
+        """SQLite réutilise le plus grand id supprimé : le nouveau profil doit partir de zéro"""
+        old_id = api_create_profile(client, "Old")
+        api_buy_btc(client, old_id)
+        api_set_order(client, old_id)
+        client.delete(f"/api/profiles/{old_id}/delete")
+
+        new_id = api_create_profile(client, "New")
+
+        with patch("api.main.get_prix", return_value=50000.0):
+            assert client.get(f"/api/profiles/{new_id}/positions").json() == []
+        assert client.get(f"/api/profiles/{new_id}/orders").json() == []
+        assert client.get(f"/api/profiles/{new_id}/cash").json() == 2000.0
+
+    def test_favorites_never_point_to_real_data_folder(self, isolate_favorites):
+        """Garde-fou : les tests ne doivent jamais lire/écrire/supprimer api/data/favorites"""
+        from api.services.profiles import favorites_path
+        assert favorites_path(1).startswith(str(isolate_favorites))
+
+    def test_delete_removes_favorites_file_only_for_that_profile(self, client):
+        import os
+        from api.services.profiles import favorites_path
+
+        alice = api_create_profile(client, "Alice")
+        bob = api_create_profile(client, "Bob")
+        client.post(f"/api/favorites/{alice}", params={"symbol": "BTC"})
+        client.post(f"/api/favorites/{bob}", params={"symbol": "AAPL"})
+        assert os.path.exists(favorites_path(alice))
+
+        assert client.delete(f"/api/profiles/{alice}/delete").status_code == 200
+
+        assert not os.path.exists(favorites_path(alice))
+        assert client.get(f"/api/favorites/{bob}").json()["favorites"] == ["AAPL"]
+
+    def test_delete_without_favorites_file_succeeds(self, client):
+        user_id = api_create_profile(client)
+        assert client.delete(f"/api/profiles/{user_id}/delete").status_code == 200
+
+    def test_new_profile_does_not_inherit_deleted_profile_favorites(self, client):
+        old_id = api_create_profile(client, "Old")
+        client.post(f"/api/favorites/{old_id}", params={"symbol": "BTC"})
+        client.delete(f"/api/profiles/{old_id}/delete")
+
+        new_id = api_create_profile(client, "New")
+
+        assert client.get(f"/api/favorites/{new_id}").json()["favorites"] == []
+
+
+# ─────────────────────────────────────────────
+# Tests : coût total après une vente partielle (P&L de /positions)
+# ─────────────────────────────────────────────
+class TestPartialSellCost:
+    def test_partial_sell_reduces_total_cost(self, client):
+        user_id = api_create_profile(client)
+        api_buy_btc(client, user_id, amount="1000", price=50000.0)  # 0.02 BTC, coût 1000
+
+        with patch("api.services.trade.get_prix", return_value=60000.0):
+            response = client.post("/api/sell", data={
+                "user_id": user_id, "symbol": "BTC", "asset_amount": "0.01", "comment": "test"
+            })
+        assert response.status_code == 200
+
+        with patch("api.main.get_prix", return_value=60000.0):
+            positions = client.get(f"/api/profiles/{user_id}/positions").json()
+
+        assert len(positions) == 1
+        pos = positions[0]
+        assert pos["total_cost"] == 500.0       # moitié du coût initial
+        assert pos["pmp"] == 50000.0            # le PRU ne change pas à la vente
+        assert pos["pnl_amount"] == 100.0       # 0.01 * 60000 - 500
+        assert pos["pnl_percent"] == 20.0

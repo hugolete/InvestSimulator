@@ -3,12 +3,14 @@ from fastapi import HTTPException
 from api.db.models import Order, UserAsset
 from api.services.prices import get_prix
 from sqlalchemy.orm import Session
-
 from api.services.trade import sell_asset
 
 
 STOP_LOSS = "STOP_LOSS"
 TAKE_PROFIT = "TAKE_PROFIT"
+
+# Tolérance pour les arrondis float (ex : bouton "Max" côté front)
+QUANTITY_EPSILON = 1e-9
 
 
 def normalize_order_type(order_type: str) -> str:
@@ -19,8 +21,26 @@ def normalize_order_type(order_type: str) -> str:
     return normalized
 
 
+def validate_percentage(percentage: float):
+    """Le signe est libre (-5 ou 5 = 5 %), mais la valeur absolue doit être dans ]0, 100[."""
+    if not (0 < abs(percentage) < 100):
+        raise HTTPException(status_code=400, detail="Pourcentage invalide : doit être compris entre 0 et 100 (exclus)")
+
+
+def validate_quantity(db: Session, user_id: int, asset_id: int, quantity: float):
+    held = get_held_quantity(db, user_id, asset_id)
+
+    if held <= 0:
+        raise HTTPException(status_code=400, detail="Vous ne possédez pas cet actif")
+
+    if quantity > held + QUANTITY_EPSILON:
+        raise HTTPException(status_code=400, detail=f"Quantité supérieure à vos avoirs ({held:g} disponibles)")
+
+
 def set_protection(user, asset, order_type: str, percentage: float, quantity: float, db: Session):
     order_type = normalize_order_type(order_type)
+    validate_percentage(percentage)
+    validate_quantity(db, user.id, asset.id, quantity)
 
     current_price = get_prix(asset.id)
     if not current_price:
@@ -59,6 +79,17 @@ def set_protection(user, asset, order_type: str, percentage: float, quantity: fl
     db.commit()
 
     return f"{order_type} configuré à {trigger_price:.2f} ({percentage}%)"
+
+
+def delete_order(user_id: int, order_id: int, db: Session):
+    """Annule un ordre. 404 s'il n'existe pas ou appartient à un autre profil."""
+    order = db.query(Order).filter(Order.id == order_id, Order.user_id == user_id).first()
+
+    if order is None:
+        raise HTTPException(status_code=404, detail="Ordre introuvable")
+
+    db.delete(order)
+    db.commit()
 
 
 def get_held_quantity(db: Session, user_id: int, asset_id: int) -> float:

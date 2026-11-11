@@ -1,45 +1,22 @@
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import PortfolioHeader from './PortfolioHeader';
-import {getProfile} from "../api/profiles";
-import {getFavorites} from "../api/favorites";
 import {getAssetDailyPercentages, getAssets} from "../api/assets";
 import {useOutletContext, useNavigate} from "react-router-dom";
-import {PieChart, TrendingUp, Briefcase, ArrowUpRight, ArrowDownRight, Layers} from "lucide-react";
+import {TrendingUp, Briefcase, ArrowUpRight, ArrowDownRight} from "lucide-react";
 
-function DashboardContent({ profileId }) {
-    const [profile, setProfile] = useState(null);
-    const [favorites, setFavorites] = useState([]);
+function DashboardContent() {
+    // Le profil est chargé (et rafraîchi après chaque trade) par Dashboard, partagé via le contexte
+    const { profileData: profile, allPrices } = useOutletContext();
     const [allAssets, setAllAssets] = useState([]);
-    const { allPrices } = useOutletContext();
     const [allPercentages, setAllPercentages] = useState({});
     const navigate = useNavigate();
-
-    useEffect(() => {
-        getProfile(profileId).then(data => {
-            setProfile(data);
-        }).catch(err => {
-            console.error("Erreur lors du chargement du profil:", err);
-        });
-    }, [profileId]);
 
     useEffect(() => {
         getAssets().then(assetsData => {
             const filter = assetsData.filter(a => a.type === "stock" || a.type === "etf" || a.type === "crypto");
             setAllAssets(filter);
-        });
+        }).catch(err => console.error("Erreur lors du chargement des actifs:", err));
     }, []);
-
-    const fetchFavorites = useCallback(() => {
-        getFavorites(profileId).then(setFavorites)
-            .catch(err => {
-                console.error(err);
-                setFavorites([]);
-            });
-    }, [profileId]);
-
-    useEffect(() => {
-        fetchFavorites();
-    }, [profileId, fetchFavorites]);
 
     useEffect(() => {
         const fetchAllPercentages = () => {
@@ -49,7 +26,7 @@ function DashboardContent({ profileId }) {
                     return acc;
                 }, {});
                 setAllPercentages(formatted);
-            });
+            }).catch(err => console.error("Erreur lors du chargement des performances:", err));
         };
 
         fetchAllPercentages();
@@ -73,7 +50,7 @@ function DashboardContent({ profileId }) {
 
     return (
         <div style={{ padding: "10px 20px" }}>
-            <PortfolioHeader profileId={profileId} />
+            <PortfolioHeader profile={profile} />
 
             {/* Section 1: Positions Ouvertes */}
             <div style={{ marginBottom: "40px" }}>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, useOutletContext } from 'react-router-dom';
 import { buyAsset, fetchAssetData, fetchChartData, sellAsset } from "../api/assets";
 import PriceChart from "../components/PriceChart";
@@ -63,7 +63,8 @@ export default function AssetPage({ profileId }) {
     }, [symbol, period]);
 
     // récup historique user pour calcul PnL
-    useEffect(() => {
+    const loadUserHistory = useCallback(() => {
+        if (!profileId) return;
         getProfileHistory(profileId)
             .then(history => {
                 setUserHistory(history);
@@ -71,7 +72,18 @@ export default function AssetPage({ profileId }) {
             .catch(err => {
                 console.error("Erreur lors du chargement de l'historique:", err);
             });
-    }, [profileId, symbol]);
+    }, [profileId]);
+
+    useEffect(() => {
+        loadUserHistory();
+    }, [loadUserHistory, symbol]);
+
+    // Après un trade : la page n'est plus démontée par Dashboard, on rafraîchit donc
+    // explicitement le profil (quantités, cash) ET l'historique (PRU, plus-values)
+    const refreshAfterTrade = () => {
+        if (refreshProfile) refreshProfile();
+        loadUserHistory();
+    };
 
     useEffect(() => {
         if (!symbol) return;
@@ -118,8 +130,7 @@ export default function AssetPage({ profileId }) {
             const symbol = response.symbol || orderSymbol;
             alert(`Achat réussi ! Vous avez acheté ${boughtQuantity.toFixed(5)} ${symbol} pour $${amount.toFixed(2)}.`);
             setIsBuyMenuOpen(false);
-
-            if (refreshProfile) refreshProfile();
+            refreshAfterTrade();
         }).catch(error => {
             alert(`Échec de la transaction: ${error.message}`);
         });
@@ -148,7 +159,7 @@ export default function AssetPage({ profileId }) {
             const usdReceived = parseFloat(response.total_price).toFixed(2);
             alert(`Vente réussie ! Vous avez vendu ${soldQuantity.toFixed(5)} ${sym} pour $${usdReceived}.`);
             setIsSellMenuOpen(false);
-            if (refreshProfile) refreshProfile();
+            refreshAfterTrade();
         }).catch(error => {
             alert(`Échec de la vente: ${error.message}`);
         });

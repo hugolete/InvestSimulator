@@ -1,41 +1,16 @@
-import { useEffect, useState } from "react";
-import { getProfile, getPerformance } from "../api/profiles";
-import { Wallet, TrendingUp, DollarSign, PieChart } from "lucide-react";
+import { Wallet, TrendingUp, DollarSign } from "lucide-react";
 
-export default function PortfolioHeader({ profileId }) {
-    const [total, setTotal] = useState(0);
-    const [perfPercent, setPerfPercent] = useState(0);
-    const [positions, setPositions] = useState(0);
-    const [liquid, setLiquid] = useState(0);
+const initialAmount = 2000;
 
-    const initialAmount = 2000;
+const formatUsd = (value) =>
+    Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-    useEffect(() => {
-        if (!profileId) return;
-
-        const fetchData = async () => {
-            const profile = await getProfile(profileId);
-            const perf = await getPerformance(profileId);
-            const roundedPerf = perf.toFixed(2);
-
-            const totalWorth = profile.total_worth ?? 0;
-            const roundedTotal = totalWorth.toFixed(2);
-
-            setTotal(roundedTotal);
-            setPerfPercent(roundedPerf);
-
-            const usdQuantity = profile.assets?.find(a => a.symbol === "USD")?.quantity ?? 0;
-            const roundedUsdQuantity = usdQuantity.toFixed(2);
-
-            const posValue = totalWorth - usdQuantity;
-            const roundedPositions = posValue.toFixed(2);
-
-            setPositions(roundedPositions);
-            setLiquid(roundedUsdQuantity);
-        };
-
-        fetchData();
-    }, [profileId]);
+// Affichage pur : les données viennent du profil chargé par Dashboard (plus de requêtes ici)
+export default function PortfolioHeader({ profile }) {
+    const total = profile?.total_worth ?? 0;
+    const liquid = profile?.assets?.find(a => a.symbol === "USD")?.quantity ?? 0;
+    const positions = total - liquid;
+    const perfPercent = Number(profile?.performance ?? 0).toFixed(2);
 
     const diff = total - initialAmount;
     const isPositive = diff >= 0;
@@ -62,10 +37,10 @@ export default function PortfolioHeader({ profileId }) {
                     </div>
                 </div>
                 <div className="mono" style={{ fontSize: "24px", fontWeight: "700", color: "#f8fafc", marginBottom: "6px" }}>
-                    ${Number(total).toLocaleString()}
+                    ${formatUsd(total)}
                 </div>
                 <div style={{ fontSize: "13px", display: "flex", alignItems: "center", gap: "6px", color: isPositive ? "#00c853" : "#ff3d00", fontWeight: "600" }}>
-                    <span>{isPositive ? "+" : ""}${Number(diff).toLocaleString()}</span>
+                    <span>{isPositive ? "+" : ""}${formatUsd(diff)}</span>
                     <span>({isPositive ? "+" : ""}{perfPercent}%)</span>
                     <span style={{ color: "#94a3b8", fontWeight: "normal" }}>vs départ ($2k)</span>
                 </div>
@@ -86,7 +61,7 @@ export default function PortfolioHeader({ profileId }) {
                     </div>
                 </div>
                 <div className="mono" style={{ fontSize: "24px", fontWeight: "700", color: "#f8fafc", marginBottom: "6px" }}>
-                    ${Number(positions).toLocaleString()}
+                    ${formatUsd(positions)}
                 </div>
                 <div style={{ fontSize: "13px", color: "#94a3b8" }}>
                     Investissements en cours
@@ -108,7 +83,7 @@ export default function PortfolioHeader({ profileId }) {
                     </div>
                 </div>
                 <div className="mono" style={{ fontSize: "24px", fontWeight: "700", color: "#f8fafc", marginBottom: "6px" }}>
-                    ${Number(liquid).toLocaleString()}
+                    ${formatUsd(liquid)}
                 </div>
                 <div style={{ fontSize: "13px", color: "#94a3b8" }}>
                     USD prêt à trader

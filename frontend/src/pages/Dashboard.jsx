@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from "react";
-import {Outlet, useNavigate} from "react-router-dom";
+import {Navigate, Outlet, useNavigate} from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import {getAllPrices} from "../api/assets";
 import {editProfile, getProfile} from "../api/profiles";
@@ -31,21 +31,27 @@ function Dashboard({ profileId }) {
         }
     };
 
-    const fetchProfileData = async (profileId) => {
-        if (!profileId) return;
+    // initial = true  : premier chargement -> écran de chargement plein écran
+    // initial = false : rafraîchissement (après un achat, etc.) -> en arrière-plan,
+    //                   sans démonter les pages enfants (AssetPage, DashboardContent)
+    const fetchProfileData = async (id, { initial = false } = {}) => {
+        if (!id) return;
 
-        setIsLoading(true);
+        if (initial) setIsLoading(true);
+        let timeoutId;
         try {
-            const data = await Promise.race([
-                getProfile(profileId),
-                new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 10000))
-            ]);
+            const timeout = new Promise((_, reject) => {
+                timeoutId = setTimeout(() => reject(new Error("Timeout")), 10000);
+            });
+            const data = await Promise.race([getProfile(id), timeout]);
             setProfile(data);
         } catch (err) {
             console.error("Erreur lors du chargement du profil:", err);
-            setProfile(null);
+            // En rafraîchissement, on garde les dernières données affichées
+            if (initial) setProfile(null);
         } finally {
-            setIsLoading(false);
+            clearTimeout(timeoutId);
+            if (initial) setIsLoading(false);
         }
     };
 
@@ -54,7 +60,7 @@ function Dashboard({ profileId }) {
     };
 
     useEffect(() => {
-        fetchProfileData(profileId);
+        fetchProfileData(profileId, { initial: true });
     }, [profileId]);
 
     useEffect(() => {
@@ -68,6 +74,11 @@ function Dashboard({ profileId }) {
         const intervalId = setInterval(fetchAllPrices, 30000);
         return () => clearInterval(intervalId);
     }, []);
+
+    // Aucun profil sélectionné (navigateur neuf, localStorage vidé) : retour à l'accueil
+    if (!profileId) {
+        return <Navigate to="/" replace />;
+    }
 
     if (isLoading) {
         return <div style={{ textAlign: "center", padding: "100px", color: "#94a3b8", background: "#0b0f19", height: "100vh" }}>Chargement des données du terminal...</div>;
