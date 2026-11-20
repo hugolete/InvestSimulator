@@ -110,7 +110,8 @@ def get_stock_price(symbol: str):
             tickers=symbol,
             period="1d",
             interval="1m",
-            progress=False
+            progress=False,
+            multi_level_index=False  # sinon data['Close'] est un DataFrame (colonne par ticker) et float() échoue
         )
 
         if data.empty:
