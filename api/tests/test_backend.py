@@ -1050,6 +1050,48 @@ class TestTradeEdgeCases:
             # Position pas supprimée
             db.delete.assert_not_called()
 
+    def test_sell_rounded_quantity_sells_exactly_held(self, mock_user, mock_asset_btc):
+        """Quantité arrondie à 8 décimales un poil au-dessus du détenu : on vend exactement la totalité"""
+        db = MagicMock()
+        held = 2500 / 173.06
+
+        asset_holding = MagicMock()
+        asset_holding.quantity = held
+
+        currency_asset = MagicMock()
+        currency_asset.id = 4
+        currency_user = MagicMock()
+        currency_user.quantity = 0.0
+
+        position = MagicMock()
+        position.quantity = held
+
+        db.query.return_value.filter.return_value.first.side_effect = [
+            asset_holding, currency_asset, currency_user, position
+        ]
+
+        with patch("api.services.trade.get_prix", return_value=180.0):
+            from api.services.trade import sell_asset
+            currency_amount, price = sell_asset(mock_user, mock_asset_btc, round(held, 8), "USD", "test", db)
+
+        assert asset_holding.quantity == 0
+        assert currency_amount == round(held * 180.0, 2)
+        db.delete.assert_called_once_with(position)
+
+    def test_sell_with_nothing_held_raises_400(self, mock_user, mock_asset_btc):
+        db = MagicMock()
+        asset_holding = MagicMock()
+        asset_holding.quantity = 0.0
+        db.query.return_value.filter.return_value.first.return_value = asset_holding
+
+        from api.services.trade import sell_asset
+        from fastapi import HTTPException
+
+        with pytest.raises(HTTPException) as exc:
+            sell_asset(mock_user, mock_asset_btc, 5e-9, "USD", "test", db)
+
+        assert exc.value.status_code == 400
+
     def test_buy_rollback_on_error(self, mock_user, mock_asset_btc):
         """Régression : buy_asset doit rollback si une erreur survient"""
         db = MagicMock()
@@ -1609,6 +1651,20 @@ class TestOrderValidationService:
     def test_quantity_equal_to_held_with_float_noise_accepted(self, mock_user, mock_asset_btc):
         result, db = self._set(mock_user, mock_asset_btc, quantity=1.0 + 1e-12, held=1.0)
         db.commit.assert_called_once()
+
+    def test_quantity_rounded_up_to_8_decimals_accepted(self, mock_user, mock_asset_btc):
+        """Régression PLTR : /positions renvoie round(14.445856928232983, 8) = 14.44585693, un peu au-dessus du détenu"""
+        held = 2500 / 173.06
+        result, db = self._set(mock_user, mock_asset_btc, quantity=round(held, 8), held=held)
+        db.commit.assert_called_once()
+
+    def test_quantity_just_beyond_tolerance_raises_400(self, mock_user, mock_asset_btc):
+        from fastapi import HTTPException
+
+        with pytest.raises(HTTPException) as exc:
+            self._set(mock_user, mock_asset_btc, quantity=1.0 + 1e-7, held=1.0)
+
+        assert exc.value.status_code == 400
 
     def test_delete_unknown_order_raises_404(self):
         from api.services.orders import delete_order

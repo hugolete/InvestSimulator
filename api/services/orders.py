@@ -3,14 +3,11 @@ from fastapi import HTTPException
 from api.db.models import Order, UserAsset
 from api.services.prices import get_prix
 from sqlalchemy.orm import Session
-from api.services.trade import sell_asset
+from api.services.trade import sell_asset, QUANTITY_EPSILON
 
 
 STOP_LOSS = "STOP_LOSS"
 TAKE_PROFIT = "TAKE_PROFIT"
-
-# Tolérance pour les arrondis float (ex : bouton "Max" côté front)
-QUANTITY_EPSILON = 1e-9
 
 
 def normalize_order_type(order_type: str) -> str:

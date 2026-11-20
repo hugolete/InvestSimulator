@@ -7,6 +7,11 @@ from api.db.models import Trade, UserAsset, Asset, UserPosition
 from api.services.prices import get_prix
 
 
+# Tolérance sur les quantités détenues : /positions arrondit à 8 décimales (écart jusqu'à 5e-9),
+# et le bouton "Max" du front ou un bot renvoie cette valeur arrondie.
+QUANTITY_EPSILON = 1e-8
+
+
 def ensure_positive_amount(value, label: str):
     """Refuse les montants <= 0, NaN ou infinis (sinon un montant négatif crée de l'argent)."""
     try:
@@ -118,8 +123,12 @@ def sell_asset(user,asset,amount_asset:float,currency:str,comment:str,db:Session
 
     assetToUpdate = db.query(UserAsset).filter(UserAsset.user_id == user.id, UserAsset.asset_id == asset.id).first()
 
-    if not assetToUpdate or amount_asset > assetToUpdate.quantity:
+    if not assetToUpdate or assetToUpdate.quantity <= 0 or amount_asset > assetToUpdate.quantity + QUANTITY_EPSILON:
         raise HTTPException(status_code=400,detail="Fonds insuffisants pour vendre")
+
+    # Quantité arrondie un poil au-dessus de ce qui est détenu : on vend exactement la totalité
+    if amount_asset > assetToUpdate.quantity:
+        amount_asset = assetToUpdate.quantity
 
     if assetToUpdate is None:
         raise HTTPException(status_code=400, detail="Cet utilisateur ne possède pas l'asset a vendre")
